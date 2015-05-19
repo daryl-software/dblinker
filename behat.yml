@@ -1,3 +1,8 @@
 default:
     formatters:
         pretty: ~
+    suites:
+        mysqli:
+            contexts: [ MysqliContext ]
+        pdo_mysql:
+            contexts: [ PdoMysqlContext ]
