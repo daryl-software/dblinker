@@ -2,7 +2,6 @@
 
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
-use Behat\Behat\Tester\Exception\PendingException;
 use Doctrine\DBAL\DriverManager;
 
 trait FeatureContext
@@ -58,7 +57,7 @@ trait FeatureContext
         $slaveCount = (int)$slaveCount;
         $slaves = [];
         while($slaveCount--) {
-            $master['weight'] = 1;
+            $master['weight'] = $slaveCount;
             $slaves[] = $master;
         }
 
@@ -76,12 +75,81 @@ trait FeatureContext
     }
 
     /**
+     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry
+     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retries
+     */
+    public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetries($connectionName, $slaveCount, $n)
+    {
+        $master = $this->masterParams();
+
+        $slaveCount = (int)$slaveCount;
+        $slaves = [];
+        while($slaveCount--) {
+            $master['weight'] = 1;
+            $slaves[] = $master;
+        }
+
+        $params = [
+            'driverClass' => 'Ez\DbLinker\Driver\MysqlRetryDriver',
+            'connectionParams' => [
+                'master' => $master,
+                'slaves' => $slaves,
+                'driverClass' => 'Ez\DbLinker\Driver\MysqlMasterSlavesDriver',
+            ],
+            'retryStrategy' => new MysqlRetryStrategy($n),
+        ];
+        $this->connections[$connectionName] = [
+            'params' => $params,
+            'instance' => null,
+            'last-result' => null,
+            'last-error' => null,
+        ];
+    }
+
+    /**
+     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry with username :userName
+     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retries with username :userName
+     */
+    public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetriesWithUsername($connectionName, $slaveCount, $n, $userName)
+    {
+        $master = $this->masterParams();
+        $master['user'] = $userName;
+
+        $slaveCount = (int)$slaveCount;
+        $slaves = [];
+        while($slaveCount--) {
+            $master['weight'] = 1;
+            $slaves[] = $master;
+        }
+
+        $params = [
+            'driverClass' => 'Ez\DbLinker\Driver\MysqlRetryDriver',
+            'connectionParams' => [
+                'master' => $master,
+                'slaves' => $slaves,
+                'driverClass' => 'Ez\DbLinker\Driver\MysqlMasterSlavesDriver',
+            ],
+            'retryStrategy' => new MysqlRetryStrategy($n),
+        ];
+        $this->connections[$connectionName] = [
+            'params' => $params,
+            'instance' => null,
+            'last-result' => null,
+            'last-error' => null,
+        ];
+    }
+
+    /**
      * @Given requests are forced on master for :connectionName
-     * @When I force requests on master for :arg1
+     * @When I force requests on master for :connectionName
      */
     public function requestsAreForcedOnMasterFor($connectionName)
     {
-        $this->getWrappedConnection($connectionName)->connectToMaster();
+        $connection = $this->getWrappedConnection($connectionName);
+        if ($connection instanceof Ez\DbLinker\Driver\Connection\RetryConnection) {
+            $connection = $connection->wrappedConnection()->getWrappedConnection();
+        }
+        $connection->connectToMaster();
     }
 
     /**
@@ -239,7 +307,7 @@ trait FeatureContext
     /**
      * @Then :connectionName retry limit should be :n
      */
-    public function shouldHaveRetryQuery($connectionName, $n)
+    public function retryLimitShouldBe($connectionName, $n)
     {
         $retryLimit = $this->getWrappedConnection($connectionName)->retryStrategy()->retryLimit();
         assert($retryLimit === (int)$n, "Retry limit is $retryLimit, $n expected.");
@@ -307,6 +375,9 @@ SQL;
             $previousException = $this->connections[$connectionName]['last-error']->getPrevious();
         }
         $errorCode = null;
+        while ($exception !== null && !($exception instanceof \Doctrine\DBAL\Exception\DriverException)) {
+            $exception = $exception->getPrevious();
+        }
         if ($exception !== null) {
             $errorCode = $exception->getErrorCode();
             $errorCodeAssertFailureMessage = "Error code is $errorCode, error code $expectedErrorCode expected";

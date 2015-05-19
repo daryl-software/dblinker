@@ -78,6 +78,37 @@ class MasterSlavesConnection implements Connection
         }
     }
 
+    public function changeSlave()
+    {
+        $currentConnection = $this->connection();
+        $this->connection = null;
+        $totalSlavesWeight = 0;
+        foreach ($this->slavesWeights as $slave) {
+            if ($currentConnection !== $slave) {
+                $totalSlavesWeight += $this->slavesWeights[$slave];
+            }
+        }
+        if ($totalSlavesWeight < 1) {
+            return;
+        }
+        $weightTarget = mt_rand(1, $totalSlavesWeight);
+        foreach ($this->slavesWeights as $slave) {
+            if ($currentConnection === $slave) {
+                continue;
+            }
+            $weightTarget -= $this->slavesWeights[$slave];
+            if ($weightTarget <= 0) {
+                $this->connection = $slave;
+                return;
+            }
+        }
+    }
+
+    public function slaves()
+    {
+        return $this->slavesWeights;
+    }
+
     /**
      * Prepares a statement for execution and returns a Statement object.
      *

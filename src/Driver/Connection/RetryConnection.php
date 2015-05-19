@@ -154,7 +154,7 @@ class RetryConnection implements Connection
         } while (true);
     }
 
-    private function wrappedConnection()
+    public function wrappedConnection()
     {
         if ($this->wrappedConnection === null) {
             $this->wrappedConnection = DriverManager::getConnection($this->wrappedConnectionParams);

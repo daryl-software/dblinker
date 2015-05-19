@@ -4,5 +4,7 @@ default:
     suites:
         mysqli:
             contexts: [ MysqliContext ]
+            filters:
+                tags: ~@skip-mysqli
         pdo_mysql:
             contexts: [ PdoMysqlContext ]

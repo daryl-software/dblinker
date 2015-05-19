@@ -23,17 +23,12 @@ Feature: Retry
          Then the last query failed on "conn"
           And the last error code should be 1205 on "once"
           And "once" retry limit should be 0
-
+    @skip-mysqli
     Scenario: Deadlock found when trying to get lock
          When I create a deadlock on "conn" with "@master"
          Then the last query succeeded on "conn"
           And the last error code should be 1213 on "conn"
           And "conn" retry limit should be 0
-
-    # Scenario: ACCESS_DENIED_ERROR restart on another slave
-    #     Given SELECT is denied on "conn"
-    #      When I query "SELECT 1" on "conn"
-    #      Then "conn" retry limit should be 2
 
     Scenario: ER_DBACCESS_DENIED_ERROR don't restart
         Given a retry connection "conn" limited to 1 retry with db "wrong_db"
