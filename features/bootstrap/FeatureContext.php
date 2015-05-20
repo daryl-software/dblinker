@@ -1,7 +1,5 @@
 <?php
 
-use Behat\Gherkin\Node\PyStringNode;
-use Behat\Gherkin\Node\TableNode;
 use Doctrine\DBAL\DriverManager;
 
 trait FeatureContext
@@ -54,9 +52,9 @@ trait FeatureContext
     {
         $master = $this->masterParams();
 
-        $slaveCount = (int)$slaveCount;
+        $slaveCount = (int) $slaveCount;
         $slaves = [];
-        while($slaveCount--) {
+        while ($slaveCount--) {
             $master['weight'] = $slaveCount;
             $slaves[] = $master;
         }
@@ -82,9 +80,9 @@ trait FeatureContext
     {
         $master = $this->masterParams();
 
-        $slaveCount = (int)$slaveCount;
+        $slaveCount = (int) $slaveCount;
         $slaves = [];
-        while($slaveCount--) {
+        while ($slaveCount--) {
             $master['weight'] = 1;
             $slaves[] = $master;
         }
@@ -115,9 +113,9 @@ trait FeatureContext
         $master = $this->masterParams();
         $master['user'] = $userName;
 
-        $slaveCount = (int)$slaveCount;
+        $slaveCount = (int) $slaveCount;
         $slaves = [];
-        while($slaveCount--) {
+        while ($slaveCount--) {
             $master['weight'] = 1;
             $slaves[] = $master;
         }
@@ -310,7 +308,7 @@ trait FeatureContext
     public function retryLimitShouldBe($connectionName, $n)
     {
         $retryLimit = $this->getWrappedConnection($connectionName)->retryStrategy()->retryLimit();
-        assert($retryLimit === (int)$n, "Retry limit is $retryLimit, $n expected.");
+        assert($retryLimit === (int) $n, "Retry limit is $retryLimit, $n expected.");
     }
 
     /**
@@ -349,7 +347,17 @@ SQL;
      */
     public function theLastQuerySucceededOn($connectionName)
     {
-        assert($this->connections[$connectionName]['last-result'] !== null);
+        if ($this->connections[$connectionName]['last-result'] === null) {
+            $lastError = $this->connections[$connectionName]['last-error'];
+            if ($lastError instanceof \Exception) {
+                $message = $lastError->getMessage();
+            } else if ($lastError !== null) {
+                $message = print_r($lastError, true);
+            } else {
+                $message = print_r($lastError, true);
+            }
+            assert(false, $message);
+        }
     }
 
     /**
@@ -357,15 +365,8 @@ SQL;
      */
     public function theLastErrorCodeShouldBeOn($expectedErrorCode, $connectionName)
     {
-        $exception = null;
         $errorCodeAssertFailureMessage = "No error found, error code $expectedErrorCode expected";
-        $wrappedConnection = $this->getConnection($connectionName)->getWrappedConnection();
-        if ($wrappedConnection instanceof MysqlRetryStrategy) {
-            $exception = $wrappedConnection->retryStrategy()->lastError();
-        }
-        if ($exception === null && $this->connections[$connectionName]['last-error'] !== null) {
-            $exception = $this->connections[$connectionName]['last-error']->getPrevious();
-        }
+        $exception = $this->connections[$connectionName]['last-error'];
         $errorCode = null;
         while ($exception !== null && !($exception instanceof \Doctrine\DBAL\Exception\DriverException)) {
             $exception = $exception->getPrevious();
@@ -374,7 +375,7 @@ SQL;
             $errorCode = $exception->getErrorCode();
             $errorCodeAssertFailureMessage = "Error code is $errorCode, error code $expectedErrorCode expected";
         }
-        assert($errorCode === (int)$expectedErrorCode, $errorCodeAssertFailureMessage);
+        assert($errorCode === (int) $expectedErrorCode, $errorCodeAssertFailureMessage);
     }
 
     /**

@@ -1,3 +1,4 @@
+@retry @master-slaves
 Feature: Retry Master/Slaves
 
     Background:

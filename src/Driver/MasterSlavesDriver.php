@@ -7,7 +7,6 @@ use \Doctrine\DBAL\Driver;
 use \Doctrine\DBAL\DriverManager;
 use Ez\DbLinker\Driver\Connection\MasterSlavesConnection;
 use SplObjectStorage;
-use Exception;
 
 trait MasterSlavesDriver
 {
@@ -26,7 +25,7 @@ trait MasterSlavesDriver
         $driverValue = $params['master'][$driverKey];
         $master = DriverManager::getConnection($params['master']);
         $slaves = new SplObjectStorage;
-        foreach($params['slaves'] as $slaveParams) {
+        foreach ($params['slaves'] as $slaveParams) {
             $slaveParams[$driverKey] = $driverValue;
             $slaves->attach(DriverManager::getConnection($slaveParams), $slaveParams['weight']);
         }
@@ -58,6 +57,8 @@ trait MasterSlavesDriver
 
     private function wrappedDriver(Connection $connection)
     {
-        return $connection->getCurrentConnection()->getDriver();
+        if ($connection instanceof MasterSlavesConnection) {
+            return $connection->getWrappedConnection()->getCurrentConnection()->getDriver();
+        }
     }
 }

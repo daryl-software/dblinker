@@ -1,3 +1,4 @@
+@retry
 Feature: Retry
 
     Background:

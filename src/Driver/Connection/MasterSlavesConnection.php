@@ -14,19 +14,21 @@ class MasterSlavesConnection implements Connection
 
     public function __construct(Connection $master, SplObjectStorage $slavesWeights)
     {
-        $this->master  = $master;
-        $this->slavesWeights  = $slavesWeights;
+        $this->master = $master;
+        $this->checkSlavesWeights($slavesWeights);
+        $this->slavesWeights = $slavesWeights;
+    }
+
+    private function checkSlavesWeights(SplObjectStorage $slavesWeights)
+    {
         foreach ($slavesWeights as $slave) {
             $weight = $slavesWeights[$slave];
-            if (!($slave instanceof Connection)) {
+            if (!$slave instanceof Connection) {
                 throw new Exception(
                     'All objects attached to $slavesWeights must implements Doctrine\DBAL\Driver\Connection'
                 );
             }
-            if (!is_numeric($weight)) {
-                throw new Exception('Slave weight must be a numeric');
-            }
-            if ($weight < 0) {
+            if ((int)$weight < 0) {
                 throw new Exception('Slave weight must be >= 0');
             }
         }
@@ -50,7 +52,7 @@ class MasterSlavesConnection implements Connection
     private function connection()
     {
         if ($this->connection === null) {
-            $this->connection = $this->chooseASlave() ?: $this->master;
+            $this->connection = $this->chooseASlave();
         }
         return $this->connection;
     }
@@ -60,53 +62,45 @@ class MasterSlavesConnection implements Connection
         return $this->connection();
     }
 
-    private function chooseASlave()
+    private function chooseASlave(Array $slavesBlacklist = [])
     {
-        $totalSlavesWeight = 0;
-        foreach ($this->slavesWeights as $slave) {
-            $totalSlavesWeight += $this->slavesWeights[$slave];
-        }
+        $slavesWeights = $this->slaves($slavesBlacklist);
+        $totalSlavesWeight = $this->totalSlavesWeight($slavesWeights);
         if ($totalSlavesWeight < 1) {
-            return;
+            return $this->master;
         }
         $weightTarget = mt_rand(1, $totalSlavesWeight);
-        foreach ($this->slavesWeights as $slave) {
-            $weightTarget -= $this->slavesWeights[$slave];
+        foreach ($slavesWeights as $slave) {
+            $weightTarget -= $slavesWeights[$slave];
             if ($weightTarget <= 0) {
                 return $slave;
             }
         }
     }
 
-    public function changeSlave()
+    private function totalSlavesWeight(SplObjectStorage $slaveWeights)
     {
-        $currentConnection = $this->connection();
-        $this->connection = null;
-        $totalSlavesWeight = 0;
-        foreach ($this->slavesWeights as $slave) {
-            if ($currentConnection !== $slave) {
-                $totalSlavesWeight += $this->slavesWeights[$slave];
-            }
+        $weight = 0;
+        foreach ($slaveWeights as $slave) {
+            $weight += $this->slavesWeights[$slave];
         }
-        if ($totalSlavesWeight < 1) {
-            return;
-        }
-        $weightTarget = mt_rand(1, $totalSlavesWeight);
-        foreach ($this->slavesWeights as $slave) {
-            if ($currentConnection === $slave) {
-                continue;
-            }
-            $weightTarget -= $this->slavesWeights[$slave];
-            if ($weightTarget <= 0) {
-                $this->connection = $slave;
-                return;
-            }
-        }
+        return $weight;
     }
 
-    public function slaves()
+    public function changeSlave()
     {
-        return $this->slavesWeights;
+        $this->connection = $this->chooseASlave([$this->connection]);
+    }
+
+    public function slaves(Array $slavesBlacklist = [])
+    {
+        $slaves = new SplObjectStorage;
+        foreach ($this->slavesWeights as $slave) {
+            if (!in_array($slave, $slavesBlacklist, true)) {
+                $slaves->attach($slave, $this->slavesWeights[$slave]);
+            }
+        }
+        return $slaves;
     }
 
     /**
@@ -116,7 +110,8 @@ class MasterSlavesConnection implements Connection
      *
      * @return \Doctrine\DBAL\Driver\Statement
      */
-    public function prepare($prepareString) {
+    public function prepare($prepareString)
+    {
         $this->connectToMaster();
         return $this->connection()->prepare($prepareString);
     }
@@ -126,7 +121,8 @@ class MasterSlavesConnection implements Connection
      *
      * @return \Doctrine\DBAL\Driver\Statement
      */
-    public function query() {
+    public function query()
+    {
         return call_user_func_array([$this->connection(), __FUNCTION__], func_get_args());
     }
 
@@ -138,7 +134,8 @@ class MasterSlavesConnection implements Connection
      *
      * @return string
      */
-    public function quote($input, $type=\PDO::PARAM_STR) {
+    public function quote($input, $type = \PDO::PARAM_STR)
+    {
         return $this->connection()->quote($input, $type);
     }
 
@@ -149,7 +146,8 @@ class MasterSlavesConnection implements Connection
      *
      * @return integer
      */
-    public function exec($statement) {
+    public function exec($statement)
+    {
         $this->connectToMaster();
         return $this->connection()->exec($statement);
     }
@@ -161,7 +159,8 @@ class MasterSlavesConnection implements Connection
      *
      * @return string
      */
-    public function lastInsertId($name = null) {
+    public function lastInsertId($name = null)
+    {
         return $this->connection()->lastInsertId($name);
     }
 
@@ -170,7 +169,8 @@ class MasterSlavesConnection implements Connection
      *
      * @return boolean TRUE on success or FALSE on failure.
      */
-    public function beginTransaction() {
+    public function beginTransaction()
+    {
         $this->connectToMaster();
         return $this->connection()->beginTransaction();
     }
@@ -180,7 +180,8 @@ class MasterSlavesConnection implements Connection
      *
      * @return boolean TRUE on success or FALSE on failure.
      */
-    public function commit() {
+    public function commit()
+    {
         $this->connectToMaster();
         return $this->connection()->commit();
     }
@@ -190,7 +191,8 @@ class MasterSlavesConnection implements Connection
      *
      * @return boolean TRUE on success or FALSE on failure.
      */
-    public function rollBack() {
+    public function rollBack()
+    {
         $this->connectToMaster();
         return $this->connection()->rollBack();
     }
@@ -200,7 +202,8 @@ class MasterSlavesConnection implements Connection
      *
      * @return string|null The error code, or null if no operation has been run on the database handle.
      */
-    public function errorCode() {
+    public function errorCode()
+    {
         return $this->connection()->errorCode();
     }
 
@@ -209,7 +212,8 @@ class MasterSlavesConnection implements Connection
      *
      * @return array
      */
-    public function errorInfo() {
+    public function errorInfo()
+    {
         return $this->connection()->errorInfo();
     }
 }

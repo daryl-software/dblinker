@@ -48,7 +48,7 @@ class RetryConnection implements Connection
      *
      * @return string
      */
-    public function quote($input, $type=\PDO::PARAM_STR) {
+    public function quote($input, $type = \PDO::PARAM_STR) {
         return $this->callAndRetry(__FUNCTION__, func_get_args());
     }
 
@@ -132,18 +132,22 @@ class RetryConnection implements Connection
         return $this->transactionLevel;
     }
 
+    /**
+     * call $method woth $arguments and retry if necessary
+     * @param  string $method    method name
+     * @param  Array  $arguments [description]
+     */
     private function callAndRetry($method, Array $arguments)
     {
         do {
             try {
                 $connection = $this->wrappedConnection();
                 return @call_user_func_array([$connection, $method], $arguments);
-            }
-            catch (DBALException $exception) {
+            } catch (DBALException $exception) {
                 if (!$this->retryStrategy->shouldRetry(
                     $exception,
                     $this,
-                    $connection,
+                    $connection->getWrappedConnection(),
                     $method,
                     $arguments
                 )) {
@@ -154,6 +158,9 @@ class RetryConnection implements Connection
         } while (true);
     }
 
+    /**
+     * @return Doctrine\DBAL\Connection
+     */
     public function wrappedConnection()
     {
         if ($this->wrappedConnection === null) {
