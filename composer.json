@@ -13,8 +13,7 @@
         }
     },
     "require": {
-        "doctrine/dbal": "~2.5",
-        "symfony/var-dumper": "^2.6"
+        "doctrine/dbal": "~2.5"
     },
     "require-dev": {
         "behat/behat": "~3.0"
