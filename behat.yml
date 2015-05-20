@@ -8,3 +8,5 @@ default:
                 tags: ~@skip-mysqli
         pdo_mysql:
             contexts: [ PdoMysqlContext ]
+            filters:
+                tags: ~@skip-pdo-mysql
