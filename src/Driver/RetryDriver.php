@@ -47,6 +47,6 @@ trait RetryDriver
 
     private function wrappedDriver(Connection $connection)
     {
-        return $conn->getCurrentConnection()->getDriver();
+        return $connection->getCurrentConnection()->getDriver();
     }
 }

@@ -337,14 +337,6 @@ SQL;
     }
 
     /**
-     * @Given :permission is denied on :conn
-     */
-    public function isDenied($permission, $conn)
-    {
-
-    }
-
-    /**
      * @When I commit the transaction on :connectionName
      */
     public function iCommitTheTransactionOn($connectionName)
@@ -368,11 +360,11 @@ SQL;
         $exception = null;
         $errorCodeAssertFailureMessage = "No error found, error code $expectedErrorCode expected";
         $wrappedConnection = $this->getConnection($connectionName)->getWrappedConnection();
-        if ($wrappedConnection instanceof Ez\DbLinker\Driver\Connection\RetryConnection) {
+        if ($wrappedConnection instanceof MysqlRetryStrategy) {
             $exception = $wrappedConnection->retryStrategy()->lastError();
         }
         if ($exception === null && $this->connections[$connectionName]['last-error'] !== null) {
-            $previousException = $this->connections[$connectionName]['last-error']->getPrevious();
+            $exception = $this->connections[$connectionName]['last-error']->getPrevious();
         }
         $errorCode = null;
         while ($exception !== null && !($exception instanceof \Doctrine\DBAL\Exception\DriverException)) {
@@ -408,6 +400,8 @@ SQL;
         }
         return $this->connections[$connectionName]['instance'];
     }
+
+    abstract protected function masterParams();
 }
 
 class MysqlRetryStrategy extends Ez\DbLinker\RetryStrategy\MysqlRetryStrategy

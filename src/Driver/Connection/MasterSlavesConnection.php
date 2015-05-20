@@ -9,7 +9,7 @@ use Exception;
 class MasterSlavesConnection implements Connection
 {
     private $master;
-    private $slaves;
+    private $slavesWeights;
     private $connection;
 
     public function __construct(Connection $master, SplObjectStorage $slavesWeights)

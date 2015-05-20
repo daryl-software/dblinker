@@ -24,7 +24,7 @@ Feature: Retry
           And the last error code should be 1205 on "once"
           And "once" retry limit should be 0
 
-    @skip-mysqli
+    @skip-mysqli @skip-pdo-mysql
     Scenario: Deadlock found when trying to get lock
          When I create a deadlock on "conn" with "@master"
          Then the last query succeeded on "conn"
