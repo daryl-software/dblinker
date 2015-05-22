@@ -2,6 +2,11 @@
 
 Database connection for master/slaves setup. This package provides drivers for [DBAL](https://github.com/doctrine/dbal). `MasterSlavesDriver` for auto switching between a master and slaves servers & `RetryDriver` for retrying query when some errors occurs.
 
+[![Build Status](https://img.shields.io/travis/ezweb/dblinker.svg)](https://travis-ci.org/ezweb/dblinker)
+[![Code Status](https://img.shields.io/scrutinizer/g/ezweb/dblinker.svg)](https://scrutinizer-ci.com/g/ezweb/dblinker/build-status/master)
+[![Latest Version](https://img.shields.io/packagist/v/ezweb/dblinker.svg)](https://packagist.org/packages/ezweb/dblinker)
+[![License](https://img.shields.io/packagist/l/ezweb/dblinker.svg)](https://packagist.org/packages/ezweb/dblinker)
+
 ## Installation
 
 run `composer require ezweb/dblinker`
