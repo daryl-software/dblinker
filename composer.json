@@ -1,0 +1,21 @@
+{
+    "name": "ezweb/dblinker",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Mathieu Rochette",
+            "email": "mathieu@rochette.cc"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Ez\\DbLinker\\": "src/"
+        }
+    },
+    "require": {
+        "doctrine/dbal": "~2.5"
+    },
+    "require-dev": {
+        "behat/behat": "~3.0"
+    }
+}

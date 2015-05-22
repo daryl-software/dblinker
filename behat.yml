@@ -1,0 +1,12 @@
+default:
+    formatters:
+        pretty: ~
+    suites:
+        mysqli:
+            contexts: [ MysqliContext ]
+            filters:
+                tags: ~@skip-mysqli
+        pdo_mysql:
+            contexts: [ PdoMysqlContext ]
+            filters:
+                tags: ~@skip-pdo-mysql

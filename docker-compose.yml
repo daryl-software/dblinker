@@ -1,0 +1,29 @@
+composer:
+    build: config/docker/php/composer
+    volumes:
+        - composer.json:/scripts/composer.json:rw
+        - composer.lock:/scripts/composer.lock:rw
+        - bin:/scripts/bin:rw
+    volumes_from:
+        - vendor
+vendor:
+    build: config/docker/php/vendor
+    volumes:
+        - /scripts/vendor
+behat:
+    build: config/docker/php/behat
+    volumes:
+        - behat.yml:/scripts/behat.yml/:ro
+        - src:/scripts/src/:ro
+        - features:/scripts/features/:rw
+    volumes_from:
+        - vendor
+    links:
+        - db
+db:
+    image: mysql:5.7
+    environment:
+        MYSQL_DATABASE: db
+        MYSQL_USER: user
+        MYSQL_PASSWORD: password
+        MYSQL_ROOT_PASSWORD: rootpassword
