@@ -1,6 +1,6 @@
 {
     "name": "ezweb/dblinker",
-    "license": "proprietary",
+    "license": "MIT",
     "authors": [
         {
             "name": "Mathieu Rochette",
