@@ -84,3 +84,14 @@ When using `Doctrine\DBAL\DriverManager`, the `$connection` it returns is an ins
 Take a look at [its documentation](http://docs.doctrine-project.org/projects/doctrine-dbal/en/latest/reference/data-retrieval-and-manipulation.html) for more information.
 
 Note: You can nest a `MysqlMasterSlavesConnection` in a `MysqlRetryConnection`.
+
+## Tests
+
+To run the test suite, you need Composer and Behat:
+
+```bash
+$ composer install
+$ behat
+```
+
+If you have Docker & Docker-Compose you can run `docker-compose run behat` instead
