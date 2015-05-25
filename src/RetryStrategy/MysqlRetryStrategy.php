@@ -15,10 +15,15 @@ class MysqlRetryStrategy implements RetryStrategy
     private $retryLimit;
 
     private $errorCodeStrategies = [
-        1152 => ['wait' => 1],
-        1205 => ['wait' => 1],
+        // ER_DBACCESS_DENIED_ERROR
         1044 => ['changeServer' => true],
+        // ER_ACCESS_DENIED_ERROR
         1045 => ['changeServer' => true],
+        // ER_ABORTING_CONNECTION
+        1152 => ['wait' => 1],
+        // ER_LOCK_WAIT_TIMEOUT
+        1205 => ['wait' => 1],
+        // CR_SERVER_GONE_ERROR
         2006 => ['reconnect' => true],
     ];
 
