@@ -9,13 +9,17 @@ php:
 before_script:
     - composer install
     - mysql -e 'create database dblinker_test;'
+    - mysql -e 'create database forbidden_db;'
+    - mysql -e 'CREATE USER "behat"@"localhost" IDENTIFIED BY "behatpassword";'
+    - mysql -u root -e 'GRANT ALL PRIVILEGES ON dblinker_test.* TO "behat"@"localhost";'
+    - mysql -u root -e 'FLUSH PRIVILEGES;'
 
 script:
     - vendor/bin/behat -s $BEHAT_DB_DRIVER
 
 env:
-    - BEHAT_DB_DRIVER=mysqli DBLINKER_DB_1_ENV_MYSQL_DATABASE=dblinker_test DBLINKER_DB_1_PORT_3306_TCP_ADDR=127.0.0.1 DBLINKER_DB_1_ENV_MYSQL_USER=travis DBLINKER_DB_1_ENV_MYSQL_PASSWORD=
-    - BEHAT_DB_DRIVER=pdo_mysql DBLINKER_DB_1_ENV_MYSQL_DATABASE=dblinker_test DBLINKER_DB_1_PORT_3306_TCP_ADDR=127.0.0.1 DBLINKER_DB_1_ENV_MYSQL_USER=travis DBLINKER_DB_1_ENV_MYSQL_PASSWORD=
+    - BEHAT_DB_DRIVER=mysqli DBLINKER_DB_1_ENV_MYSQL_DATABASE=dblinker_test DBLINKER_DB_1_PORT_3306_TCP_ADDR=127.0.0.1 DBLINKER_DB_1_ENV_MYSQL_USER=behat DBLINKER_DB_1_ENV_MYSQL_PASSWORD=behatpassword
+    - BEHAT_DB_DRIVER=pdo_mysql DBLINKER_DB_1_ENV_MYSQL_DATABASE=dblinker_test DBLINKER_DB_1_PORT_3306_TCP_ADDR=127.0.0.1 DBLINKER_DB_1_ENV_MYSQL_USER=behat DBLINKER_DB_1_ENV_MYSQL_PASSWORD=behatpassword
 
 matrix:
     allow_failures:
