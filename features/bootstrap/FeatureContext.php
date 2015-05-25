@@ -367,6 +367,9 @@ SQL;
     {
         $errorCodeAssertFailureMessage = "No error found, error code $expectedErrorCode expected";
         $exception = $this->connections[$connectionName]['last-error'];
+        if ($exception === null) {
+            $exception = $this->getWrappedConnection($connectionName)->retryStrategy()->lastError();
+        }
         $errorCode = null;
         while ($exception !== null && !($exception instanceof \Doctrine\DBAL\Exception\DriverException)) {
             $exception = $exception->getPrevious();

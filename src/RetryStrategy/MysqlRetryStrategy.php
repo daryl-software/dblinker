@@ -23,6 +23,8 @@ class MysqlRetryStrategy implements RetryStrategy
         1152 => ['wait' => 1],
         // ER_LOCK_WAIT_TIMEOUT
         1205 => ['wait' => 1],
+        // ER_LOCK_WAIT_TIMEOUT
+        1213 => ['wait' => 1],
         // CR_SERVER_GONE_ERROR
         2006 => ['reconnect' => true],
     ];
@@ -35,6 +37,7 @@ class MysqlRetryStrategy implements RetryStrategy
     private function errorCodeStrategy($errorCode)
     {
         $strategy = (object) [
+            'retry' => true,
             'wait' => 0,
             'changeServer' => false,
             'reconnect' => false,
@@ -45,7 +48,7 @@ class MysqlRetryStrategy implements RetryStrategy
             }
             return $strategy;
         }
-        return false;
+        return (object) ['retry' => false];
     }
 
     private function errorCode(DBALException $exception)
@@ -78,7 +81,7 @@ class MysqlRetryStrategy implements RetryStrategy
     }
 
     private function applyStrategy(stdClass $strategy, RetryConnection $connection, Connection $wrappedConnection) {
-        if ($strategy === false || !$this->changeServer($strategy, $wrappedConnection)) {
+        if ($strategy->retry === false || !$this->changeServer($strategy, $wrappedConnection)) {
             return false;
         }
         sleep($strategy->wait);
