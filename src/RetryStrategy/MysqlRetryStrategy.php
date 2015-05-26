@@ -19,6 +19,8 @@ class MysqlRetryStrategy implements RetryStrategy
         1044 => ['changeServer' => true],
         // ER_ACCESS_DENIED_ERROR
         1045 => ['changeServer' => true],
+        // ER_BAD_DB_ERROR
+        1049 => ['changeServer' => true],
         // ER_ABORTING_CONNECTION
         1152 => ['wait' => 1],
         // ER_LOCK_WAIT_TIMEOUT
