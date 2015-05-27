@@ -438,6 +438,19 @@ SQL;
         assert($this->connections[$connectionName]['last-result'] === null);
     }
 
+    /**
+     * @Then :connectionName should have :n slave
+     * @Then :connectionName should have :n slaves
+     */
+    public function shouldHaveSlave($connectionName, $n)
+    {
+        $connection = $this->getWrappedConnection($connectionName);
+        if ($connection instanceof \Ez\DbLinker\Driver\Connection\RetryConnection) {
+            $connection = $connection->wrappedConnection()->getWrappedConnection();
+        }
+        $slaveCount = $connection->slaves()->count();
+        assert($slaveCount === (int)$n, "Slaves count is $slaveCount, $n expected.");
+    }
 
     private function getWrappedConnection($connectionName)
     {

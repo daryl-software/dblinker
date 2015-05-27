@@ -6,9 +6,9 @@ Feature: Retry
 
     Scenario: MySQL has Gone Away
         Given MySQL has Gone Away on "conn"
-          And I exec "SET SESSION wait_timeout = 1" on "conn"
          When I query "SELECT 1" on "conn"
          Then the last query succeeded on "conn"
+          And the last error code should be 2006 on "conn"
           And "conn" retry limit should be 0
 
     Scenario: Lock wait timeout exceeded
