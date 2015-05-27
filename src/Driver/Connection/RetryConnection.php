@@ -147,7 +147,6 @@ class RetryConnection implements Connection
                 if (!$this->retryStrategy->shouldRetry(
                     $exception,
                     $this,
-                    $connection->getWrappedConnection(),
                     $method,
                     $arguments
                 )) {

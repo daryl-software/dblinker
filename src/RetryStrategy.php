@@ -11,7 +11,6 @@ interface RetryStrategy
     public function shouldRetry(
         DBALException $exception,
         RetryConnection $connection,
-        Connection $wrappedConnection,
         $method,
         Array $arguments
     );

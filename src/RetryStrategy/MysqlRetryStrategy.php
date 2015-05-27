@@ -36,6 +36,39 @@ class MysqlRetryStrategy implements RetryStrategy
         $this->retryLimit = $retryLimit;
     }
 
+    public function shouldRetry(
+        DBALException $exception,
+        RetryConnection $connection,
+        $method,
+        Array $arguments
+    ) {
+        if (!$this->canRetry($connection)) {
+            return false;
+        }
+        $strategy = $this->errorCodeStrategy($this->errorCode($exception));
+        return $this->applyStrategy($strategy, $connection);
+    }
+
+    public function retryLimit()
+    {
+        return $this->retryLimit > 0 ? (int) $this->retryLimit : 0;
+    }
+
+    private function canRetry(RetryConnection $connection = null)
+    {
+        return $this->retryLimit > 0 && ($connection === null || $connection->transactionLevel() === 0);
+    }
+
+    private function errorCode(DBALException $exception)
+    {
+        while ($exception !== null) {
+            if ($exception instanceof DriverException) {
+                return $exception->getErrorCode();
+            }
+            $exception = $exception->getPrevious();
+        }
+    }
+
     private function errorCodeStrategy($errorCode)
     {
         $strategy = (object) [
@@ -53,23 +86,24 @@ class MysqlRetryStrategy implements RetryStrategy
         return (object) ['retry' => false];
     }
 
-    private function errorCode(DBALException $exception)
-    {
-        while ($exception !== null) {
-            if ($exception instanceof DriverException) {
-                return $exception->getErrorCode();
-            }
-            $exception = $exception->getPrevious();
+    private function applyStrategy(stdClass $strategy, RetryConnection $connection) {
+        if ($strategy->retry === false || !$this->changeServer($strategy, $connection)) {
+            return false;
         }
+        sleep($strategy->wait);
+        $this->reconnect($strategy, $connection);
+        $this->retryLimit--;
+        return true;
     }
 
-    private function changeServer(stdClass $strategy, Connection $connection)
+    private function changeServer(stdClass $strategy, RetryConnection $connection)
     {
         if (!$strategy->changeServer) {
             return true;
         }
-        if ($connection instanceof MasterSlavesConnection && !$connection->isConnectedToMaster()) {
-            $connection->disableCurrentSlave();
+        $wrappedConnection = $connection->wrappedConnection()->getWrappedConnection();
+        if ($wrappedConnection instanceof MasterSlavesConnection && !$wrappedConnection->isConnectedToMaster()) {
+            $wrappedConnection->disableCurrentSlave();
             return true;
         }
         return false;
@@ -80,34 +114,5 @@ class MysqlRetryStrategy implements RetryStrategy
         if ($strategy->reconnect) {
             $connection->close();
         }
-    }
-
-    private function applyStrategy(stdClass $strategy, RetryConnection $connection, Connection $wrappedConnection) {
-        if ($strategy->retry === false || !$this->changeServer($strategy, $wrappedConnection)) {
-            return false;
-        }
-        sleep($strategy->wait);
-        $this->reconnect($strategy, $connection);
-        $this->retryLimit--;
-        return true;
-    }
-
-    public function shouldRetry(
-        DBALException $exception,
-        RetryConnection $connection,
-        Connection $wrappedConnection,
-        $method,
-        Array $arguments
-    ) {
-        if ($connection->transactionLevel() > 0 || $this->retryLimit < 1) {
-            return false;
-        }
-        $strategy = $this->errorCodeStrategy($this->errorCode($exception));
-        return $this->applyStrategy($strategy, $connection, $wrappedConnection);
-    }
-
-    public function retryLimit()
-    {
-        return $this->retryLimit > 0 ? (int) $this->retryLimit : 0;
     }
 }

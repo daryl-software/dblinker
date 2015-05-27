@@ -19,6 +19,11 @@ trait FeatureContext
                 'last-error' => null,
             ]
         ];
+        $connection = $this->rootConnection();
+        $connection->exec("SET GLOBAL MAX_CONNECTIONS = 50");
+        $connection->close();
+        $connection = null;
+        gc_collect_cycles();
     }
 
     /**
@@ -26,13 +31,43 @@ trait FeatureContext
      */
     public function clearDatabase()
     {
-        $params = $this->masterParams();
-        $dbname = $params['dbname'];
-        unset($params['dbname']);
-        $connection = DriverManager::getConnection($params);
+        $dbname = $this->masterParams()['dbname'];
+        $connection = $this->rootConnection();
         $connection->exec("DROP DATABASE IF EXISTS $dbname");
         $connection->exec("CREATE DATABASE $dbname");
+        $connection->close();
+        $connection = null;
+        gc_collect_cycles();
     }
+
+    /**
+     * @BeforeScenario
+     */
+    public function assertNoActiveConnection()
+    {
+        $n = $this->activeConnectionsCount();
+        assert($n === 0, "There is $n active connection(s) on the test server");
+    }
+
+    private function activeConnectionsCount()
+    {
+        $connection = $this->rootConnection();
+        gc_collect_cycles();
+        $n = (int)$connection->fetchAll("show status like 'Threads_connected'")[0]['Value'];
+        $connection->close();
+        $connection = null;
+        gc_collect_cycles();
+        return $n - 1;
+    }
+
+    private function rootConnection()
+    {
+        $params = $this->masterParams('root');
+        $dbname = $params['dbname'];
+        unset($params['dbname']);
+        return DriverManager::getConnection($params);
+    }
+
     /**
      * @AfterScenario
      */
@@ -43,6 +78,22 @@ trait FeatureContext
                 $instance->close();
             }
         }
+        $this->connections = [];
+        gc_collect_cycles();
+    }
+
+    /**
+     * @Given the server accept :n more connection
+     * @Given the server accept :n more connections
+     */
+    public function theServerAcceptMoreConnections($n)
+    {
+        $n += $this->activeConnectionsCount();
+        $connection = $this->rootConnection();
+        $connection->exec("SET GLOBAL MAX_CONNECTIONS = $n");
+        $connection->close();
+        $connection = null;
+        gc_collect_cycles();
     }
 
     /**
@@ -75,43 +126,12 @@ trait FeatureContext
     /**
      * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry
      * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retries
+     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry with username :username
+     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retries with username :username
      */
-    public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetries($connectionName, $slaveCount, $n)
+    public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetriesWithusername($connectionName, $slaveCount, $n, $username = null)
     {
-        $master = $this->masterParams();
-
-        $slaveCount = (int) $slaveCount;
-        $slaves = [];
-        while ($slaveCount--) {
-            $master['weight'] = 1;
-            $slaves[] = $master;
-        }
-
-        $params = [
-            'driverClass' => 'Ez\DbLinker\Driver\MysqlRetryDriver',
-            'connectionParams' => [
-                'master' => $master,
-                'slaves' => $slaves,
-                'driverClass' => 'Ez\DbLinker\Driver\MysqlMasterSlavesDriver',
-            ],
-            'retryStrategy' => new MysqlRetryStrategy($n),
-        ];
-        $this->connections[$connectionName] = [
-            'params' => $params,
-            'instance' => null,
-            'last-result' => null,
-            'last-error' => null,
-        ];
-    }
-
-    /**
-     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry with username :userName
-     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retries with username :userName
-     */
-    public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetriesWithUsername($connectionName, $slaveCount, $n, $userName)
-    {
-        $master = $this->masterParams();
-        $master['user'] = $userName;
+        $master = $this->masterParams($username);
 
         $slaveCount = (int) $slaveCount;
         $slaves = [];
@@ -238,34 +258,15 @@ trait FeatureContext
 
     /**
      * @Given a retry connection :connectionName limited to :n retry
-     * @Given a retry connection :connectionName limited to :n retries
-     */
-    public function aRetryConnection($connectionName, $n)
-    {
-        $params = [
-            'driverClass' => 'Ez\DbLinker\Driver\MysqlRetryDriver',
-            'connectionParams' => $this->masterParams(),
-            'retryStrategy' => new MysqlRetryStrategy($n),
-        ];
-        $this->connections[$connectionName] = [
-            'params' => $params,
-            'instance' => null,
-            'last-result' => null,
-            'last-error' => null,
-        ];
-    }
-
-    /**
      * @Given a retry connection :connectionName limited to :n retry with username :username
      */
-    public function aRetryConnectionLimitedToRetryWithUsername($connectionName, $n, $username)
+    public function aRetryConnectionLimitedToRetryWithusername($connectionName, $n, $username = null)
     {
         $params = [
             'driverClass' => 'Ez\DbLinker\Driver\MysqlRetryDriver',
-            'connectionParams' => $this->masterParams(),
+            'connectionParams' => $this->masterParams($username),
             'retryStrategy' => new MysqlRetryStrategy($n),
         ];
-        $params['connectionParams']['user'] = $username;
         $this->connections[$connectionName] = [
             'params' => $params,
             'instance' => null,
@@ -275,20 +276,13 @@ trait FeatureContext
     }
 
     /**
-     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry with db :db and username :username
      * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry with db :db
+     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry with db :db and username :username
      */
-    public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetryWithDb($connectionName, $slaveCount, $n, $db, $username = null, $password = '')
+    public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetryWithDbAndUsername($connectionName, $slaveCount, $n, $db, $username = null)
     {
-        $master = $this->masterParams();
+        $master = $this->masterParams($username);
         $master['dbname'] = $db;
-        if ($username !== null) {
-            $master['user'] = $username;
-            if ($username === 'root') {
-                $password = getenv('DBLINKER_DB_1_ENV_MYSQL_ROOT_PASSWORD');
-            }
-            $master['password'] = $password;
-        }
 
         $slaveCount = (int) $slaveCount;
         $slaves = [];
@@ -315,19 +309,12 @@ trait FeatureContext
     }
 
     /**
-     * @Given a retry connection :connectionName limited to :n retry with db :db and username :username
      * @Given a retry connection :connectionName limited to :n retry with db :db
+     * @Given a retry connection :connectionName limited to :n retry with db :db and username :username
      */
-    public function aRetryConnectionLimitedToRetryWithDb($connectionName, $n, $db, $username = null)
+    public function aRetryConnectionLimitedToRetryWithDbAndUsername($connectionName, $n, $db, $username = null)
     {
-        $master = $this->masterParams();
-        if ($username !== null) {
-            $master['user'] = $username;
-            if ($username === 'root') {
-                $password = getenv('DBLINKER_DB_1_ENV_MYSQL_ROOT_PASSWORD');
-            }
-            $master['password'] = $password;
-        }
+        $master = $this->masterParams($username);
         $params = [
             'driverClass' => 'Ez\DbLinker\Driver\MysqlRetryDriver',
             'connectionParams' => $master,
@@ -453,6 +440,20 @@ SQL;
         assert($slaveCount === (int)$n, "Slaves count is $slaveCount, $n expected.");
     }
 
+    /**
+     * @Given a connection :connectionName
+     * @Given a connection :connectionName with username :username
+     */
+    public function aConnectionWithusername($connectionName, $username = null)
+    {
+        $this->connections[$connectionName] = [
+            'params' => $this->masterParams($username),
+            'instance' => null,
+            'last-result' => null,
+            'last-error' => null,
+        ];
+    }
+
     private function getWrappedConnection($connectionName)
     {
         return $this->getConnection($connectionName)->getWrappedConnection();
@@ -468,7 +469,24 @@ SQL;
         return $this->connections[$connectionName]['instance'];
     }
 
-    abstract protected function masterParams();
+    protected abstract function params(Array $params);
+
+    private function masterParams($username = null, $password = '') {
+        $params = [
+            'host'          => getenv('DBLINKER_DB_1_PORT_3306_TCP_ADDR'),
+            'user'          => getenv('DBLINKER_DB_1_ENV_MYSQL_USER'),
+            'password'      => getenv('DBLINKER_DB_1_ENV_MYSQL_PASSWORD'),
+            'dbname'        => getenv('DBLINKER_DB_1_ENV_MYSQL_DATABASE'),
+        ];
+        if ($username !== null) {
+            $params['user'] = $username;
+            if ($username === 'root') {
+                $password = getenv('DBLINKER_DB_1_ENV_MYSQL_ROOT_PASSWORD');
+            }
+            $params['password'] = $password;
+        }
+        return $this->params($params);
+    }
 }
 
 class MysqlRetryStrategy extends Ez\DbLinker\RetryStrategy\MysqlRetryStrategy
@@ -478,12 +496,11 @@ class MysqlRetryStrategy extends Ez\DbLinker\RetryStrategy\MysqlRetryStrategy
     public function shouldRetry(
         Doctrine\DBAL\DBALException $exception,
         Ez\DbLinker\Driver\Connection\RetryConnection $connection,
-        Doctrine\DBAL\Driver\Connection $wrappedConnection,
         $method,
         Array $arguments
     ) {
         $this->lastError = $exception;
-        return parent::shouldRetry($exception, $connection, $wrappedConnection, $method, $arguments);
+        return parent::shouldRetry($exception, $connection, $method, $arguments);
     }
 
     public function lastError()

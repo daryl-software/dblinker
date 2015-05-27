@@ -67,3 +67,13 @@ Feature: Retry
           And I query "SELECT 1" on "conn"
          Then the last query succeeded on "conn"
           And "conn" retry limit should be 0
+@wip
+    Scenario: Too many connections
+        Given the server accept 1 more connections
+          And a retry connection "conn1" limited to 1 retry
+          And a retry connection "conn2" limited to 1 retry
+         When I query "SELECT 1" on "conn1"
+          And I query "SELECT 1" on "conn2"
+         Then the last query failed on "conn2"
+          And the last error code should be 1040 on "conn2"
+          And "conn2" retry limit should be 0
