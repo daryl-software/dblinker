@@ -166,7 +166,8 @@ trait FeatureContext
         $this->connections[$connectionName]['last-result'] = null;
         $this->connections[$connectionName]['last-error']  = null;
         try {
-            $this->connections[$connectionName]['last-result'] = $this->getConnection($connectionName)->query($sql);
+            $connection = $this->getConnection($connectionName);
+            $this->connections[$connectionName]['last-result'] = $connection->query($sql);
         } catch (\Exception $e) {
             $this->connections[$connectionName]['last-error'] = $e;
         }

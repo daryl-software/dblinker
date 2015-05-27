@@ -62,45 +62,39 @@ class MasterSlavesConnection implements Connection
         return $this->connection();
     }
 
-    private function chooseASlave(Array $slavesBlacklist = [])
+    private function chooseASlave()
     {
-        $slavesWeights = $this->slaves($slavesBlacklist);
-        $totalSlavesWeight = $this->totalSlavesWeight($slavesWeights);
+        $totalSlavesWeight = $this->totalSlavesWeight();
         if ($totalSlavesWeight < 1) {
             return $this->master;
         }
         $weightTarget = mt_rand(1, $totalSlavesWeight);
-        foreach ($slavesWeights as $slave) {
-            $weightTarget -= $slavesWeights[$slave];
+        foreach ($this->slavesWeights as $slave) {
+            $weightTarget -= $this->slavesWeights[$slave];
             if ($weightTarget <= 0) {
                 return $slave;
             }
         }
     }
 
-    private function totalSlavesWeight(SplObjectStorage $slaveWeights)
+    private function totalSlavesWeight()
     {
         $weight = 0;
-        foreach ($slaveWeights as $slave) {
+        foreach ($this->slavesWeights as $slave) {
             $weight += $this->slavesWeights[$slave];
         }
         return $weight;
     }
 
-    public function changeSlave()
+    public function disableCurrentSlave()
     {
-        $this->connection = $this->chooseASlave([$this->connection]);
+        $this->slavesWeights->detach($this->connection);
+        $this->connection = null;
     }
 
-    public function slaves(Array $slavesBlacklist = [])
+    public function slaves()
     {
-        $slaves = new SplObjectStorage;
-        foreach ($this->slavesWeights as $slave) {
-            if (!in_array($slave, $slavesBlacklist, true)) {
-                $slaves->attach($slave, $this->slavesWeights[$slave]);
-            }
-        }
-        return $slaves;
+        return clone $this->slavesWeights;
     }
 
     /**

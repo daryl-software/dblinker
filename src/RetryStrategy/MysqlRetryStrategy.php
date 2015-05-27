@@ -69,7 +69,7 @@ class MysqlRetryStrategy implements RetryStrategy
             return true;
         }
         if ($connection instanceof MasterSlavesConnection && !$connection->isConnectedToMaster()) {
-            $connection->changeSlave();
+            $connection->disableCurrentSlave();
             return true;
         }
         return false;
