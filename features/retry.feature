@@ -45,6 +45,13 @@ Feature: Retry
           And the last error code should be 1045 on "conn"
           And "conn" retry limit should be 1
 
+    Scenario: ER_BAD_DB_ERROR don't restart
+        Given a retry connection "conn" limited to 1 retry with db "unknown_db" and username "root"
+         When I query "SELECT 1" on "conn"
+         Then the last query failed on "conn"
+          And the last error code should be 1049 on "conn"
+          And "conn" retry limit should be 1
+
     Scenario: Don't restart transaction
         Given a transaction is started on "conn"
           And MySQL has Gone Away on "conn"

@@ -274,13 +274,62 @@ trait FeatureContext
     }
 
     /**
-     * @Given a retry connection :connectionName limited to :n retry with db :db
+     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry with db :db and username :username
+     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry with db :db
      */
-    public function aRetryConnectionLimitedToRetryWithDb($connectionName, $n, $db)
+    public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetryWithDb($connectionName, $slaveCount, $n, $db, $username = null, $password = '')
     {
+        $master = $this->masterParams();
+        $master['dbname'] = $db;
+        if ($username !== null) {
+            $master['user'] = $username;
+            if ($username === 'root') {
+                $password = getenv('DBLINKER_DB_1_ENV_MYSQL_ROOT_PASSWORD');
+            }
+            $master['password'] = $password;
+        }
+
+        $slaveCount = (int) $slaveCount;
+        $slaves = [];
+        while ($slaveCount--) {
+            $master['weight'] = 1;
+            $slaves[] = $master;
+        }
+
         $params = [
             'driverClass' => 'Ez\DbLinker\Driver\MysqlRetryDriver',
-            'connectionParams' => $this->masterParams(),
+            'connectionParams' => [
+                'master' => $master,
+                'slaves' => $slaves,
+                'driverClass' => 'Ez\DbLinker\Driver\MysqlMasterSlavesDriver',
+            ],
+            'retryStrategy' => new MysqlRetryStrategy($n),
+        ];
+        $this->connections[$connectionName] = [
+            'params' => $params,
+            'instance' => null,
+            'last-result' => null,
+            'last-error' => null,
+        ];
+    }
+
+    /**
+     * @Given a retry connection :connectionName limited to :n retry with db :db and username :username
+     * @Given a retry connection :connectionName limited to :n retry with db :db
+     */
+    public function aRetryConnectionLimitedToRetryWithDb($connectionName, $n, $db, $username = null)
+    {
+        $master = $this->masterParams();
+        if ($username !== null) {
+            $master['user'] = $username;
+            if ($username === 'root') {
+                $password = getenv('DBLINKER_DB_1_ENV_MYSQL_ROOT_PASSWORD');
+            }
+            $master['password'] = $password;
+        }
+        $params = [
+            'driverClass' => 'Ez\DbLinker\Driver\MysqlRetryDriver',
+            'connectionParams' => $master,
             'retryStrategy' => new MysqlRetryStrategy($n),
         ];
         $params['connectionParams']['dbname'] = $db;
