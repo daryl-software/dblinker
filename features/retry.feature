@@ -24,7 +24,7 @@ Feature: Retry
          Then the last query failed on "conn"
           And the last error code should be 1205 on "once"
           And "once" retry limit should be 0
-    @skip-mysqli
+    @skip-mysqli @skip-travis
     Scenario: Deadlock found when trying to get lock
          When I create a deadlock on "conn" with "@master"
          Then the last query succeeded on "conn"
@@ -67,7 +67,7 @@ Feature: Retry
           And I query "SELECT 1" on "conn"
          Then the last query succeeded on "conn"
           And "conn" retry limit should be 0
-@wip
+
     Scenario: Too many connections
         Given the server accept 1 more connections
           And a retry connection "conn1" limited to 1 retry
@@ -77,3 +77,10 @@ Feature: Retry
          Then the last query failed on "conn2"
           And the last error code should be 1040 on "conn2"
           And "conn2" retry limit should be 0
+
+    Scenario:
+        Given table "not_here_yet" can be created automatically on "conn"
+         When I prepare a statement "SELECT * FROM not_here_yet" on "conn"
+          And I execute this statement
+         Then the last statement succeeded
+          And the last statement error code should be 1146
