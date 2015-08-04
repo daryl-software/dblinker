@@ -1,6 +1,6 @@
 @retry @master-slaves
 Feature: Retry Master/Slaves
-    @bug
+
     Scenario: ACCESS_DENIED_ERROR restart on another slave
         Given a retry master/slaves connection "conn" with 2 slaves limited to 1 retry with username "nobody"
          When I query "SELECT 1" on "conn"
@@ -17,7 +17,7 @@ Feature: Retry Master/Slaves
           And the last error code should be 1045 on "conn"
           And "conn" retry limit should be 1
           And "conn" should have 2 slaves
-    @bug
+
     Scenario: ER_BAD_DB_ERROR restart on another slave
         Given a retry master/slaves connection "conn" with 2 slaves limited to 1 retry with db "unknown_db" and username "root"
          When I query "SELECT 1" on "conn"

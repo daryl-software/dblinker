@@ -3,10 +3,9 @@
 namespace Ez\DbLinker\RetryStrategy;
 
 use Ez\DbLinker\RetryStrategy;
-use Doctrine\DBAL\Driver\Connection;
 use Doctrine\DBAL\DBALException;
-use Ez\DbLinker\Driver\Connection\RetryConnection;
 use Ez\DbLinker\Driver\Connection\MasterSlavesConnection;
+use Ez\DbLinker\Driver\Connection\RetryConnection;
 use Doctrine\DBAL\Exception\DriverException;
 use stdClass;
 
@@ -42,7 +41,7 @@ class MysqlRetryStrategy implements RetryStrategy
         DBALException $exception,
         RetryConnection $connection,
         $method,
-        Array $arguments
+        array $arguments
     ) {
         if (!$this->canRetry($connection)) {
             return false;

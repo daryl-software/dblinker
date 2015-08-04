@@ -14,6 +14,8 @@ class RetryConnection implements Connection
     private $retryStrategy;
     private $transactionLevel = 0;
 
+    use CallAndRetry;
+
     public function __construct(Array $wrappedConnectionParams, RetryStrategy $retryStrategy)
     {
         $this->wrappedConnectionParams = $wrappedConnectionParams;
@@ -28,7 +30,11 @@ class RetryConnection implements Connection
      * @return \Doctrine\DBAL\Driver\Statement
      */
     public function prepare($prepareString) {
-        return $this->callAndRetry(__FUNCTION__, func_get_args());
+        return new RetryStatement(
+            $this->callAndRetry(__FUNCTION__, func_get_args()),
+            $this,
+            $this->retryStrategy
+        );
     }
 
     /**
@@ -132,34 +138,11 @@ class RetryConnection implements Connection
         return $this->transactionLevel;
     }
 
-    /**
-     * call $method woth $arguments and retry if necessary
-     * @param  string $method    method name
-     * @param  Array  $arguments [description]
-     */
-    private function callAndRetry($method, Array $arguments)
+    private function wrappedObject()
     {
-        do {
-            try {
-                $connection = $this->wrappedConnection();
-                return @call_user_func_array([$connection, $method], $arguments);
-            } catch (DBALException $exception) {
-                if (!$this->retryStrategy->shouldRetry(
-                    $exception,
-                    $this,
-                    $method,
-                    $arguments
-                )) {
-                    // stop trying
-                    throw $exception;
-                }
-            }
-        } while (true);
+        return $this->wrappedConnection();
     }
 
-    /**
-     * @return Doctrine\DBAL\Connection
-     */
     public function wrappedConnection()
     {
         if ($this->wrappedConnection === null) {
@@ -171,5 +154,10 @@ class RetryConnection implements Connection
     public function retryStrategy()
     {
         return $this->retryStrategy;
+    }
+
+    public function retryConnection()
+    {
+        return $this;
     }
 }

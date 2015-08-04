@@ -5,6 +5,7 @@ use Doctrine\DBAL\DriverManager;
 trait FeatureContext
 {
     private $connections = [];
+    private $statement;
 
     /**
      * @BeforeScenario
@@ -398,9 +399,9 @@ SQL;
     }
 
     /**
-     * @Then the last error code should be :errorCode on :connectionName
+     * @Then the last error code should be :expectedErrorCode on :connectionName
      */
-    public function theLastErrorCodeShouldBeOn($expectedErrorCode, $connectionName)
+    public function theLastExpectedErrorCodeShouldBeOn($expectedErrorCode, $connectionName)
     {
         $errorCodeAssertFailureMessage = "No error found, error code $expectedErrorCode expected";
         $exception = $this->connections[$connectionName]['last-error'];
@@ -454,6 +455,69 @@ SQL;
         ];
     }
 
+    /**
+     * @When I prepare a statement :query on :connectionName
+     */
+    public function iPrepareAStatementOn($query, $connectionName)
+    {
+        $connection = $this->getConnection($connectionName);
+        $this->statement = $connection->prepare($query);
+        $this->statement->connection = $connection;
+    }
+
+    /**
+     * @When I execute this statement
+     */
+    public function iExecuteThisStatement()
+    {
+        $this->lastStatementResult = null;
+        $this->lastStatementError = null;
+        try {
+            $this->lastStatementResult = $this->statement->execute();
+        } catch (\Exception $e) {
+            $this->lastStatementError = $e;
+        }
+    }
+
+    /**
+     * @Then the last statement succeeded
+     */
+    public function theLastStatementSucceeded()
+    {
+        if ($this->lastStatementResult === null) {
+            $lastError = $this->lastStatementError;
+            if ($lastError instanceof \Exception) {
+                $message = $lastError->getMessage();
+            } else if ($lastError !== null) {
+                $message = print_r($lastError, true);
+            } else {
+                $message = print_r($lastError, true);
+            }
+            assert(false, $message);
+        }
+    }
+
+    /**
+     * @Then the last statement error code should be :expectedErrorCode
+     */
+    public function theLastStatementExpectedErrorCodeShouldBe($expectedErrorCode)
+    {
+        $errorCodeAssertFailureMessage = "No error found, error code $expectedErrorCode expected";
+        $exception = $this->lastStatementError;
+        if ($exception === null) {
+            $exception = $this->statement->connection->getWrappedConnection()->retryStrategy()->lastError();
+        }
+        $errorCode = null;
+        while ($exception !== null && !($exception instanceof \Doctrine\DBAL\Exception\DriverException)) {
+            $exception = $exception->getPrevious();
+        }
+        if ($exception !== null) {
+            $errorCode = $exception->getErrorCode();
+            $errorCodeAssertFailureMessage = "Error code is $errorCode, error code $expectedErrorCode expected";
+        }
+        assert($errorCode === (int) $expectedErrorCode, $errorCodeAssertFailureMessage);
+    }
+
     private function getWrappedConnection($connectionName)
     {
         return $this->getConnection($connectionName)->getWrappedConnection();
@@ -487,11 +551,29 @@ SQL;
         }
         return $this->params($params);
     }
+
+    /**
+     * @Given table :tableName can be created automatically on :connectionName
+     */
+    public function tableCanBeCreatedAutomaticallyOn($tableName, $connectionName)
+    {
+        $connection = $this->getWrappedConnection($connectionName);
+        $connection->retryStrategy()->addHandler(function (
+            Doctrine\DBAL\DBALException $exception,
+            Ez\DbLinker\Driver\Connection\RetryConnection $connection
+        ) use ($tableName) {
+            if (strpos($exception->getMessage(), "An exception occurred while executing 'SELECT * FROM {$tableName}':") === 0) {
+                $connection->exec("CREATE TABLE {$tableName} (id INT)");
+                return true;
+            }
+        });
+    }
 }
 
 class MysqlRetryStrategy extends Ez\DbLinker\RetryStrategy\MysqlRetryStrategy
 {
     private $lastError = null;
+    private $handlers = [];
 
     public function shouldRetry(
         Doctrine\DBAL\DBALException $exception,
@@ -500,11 +582,18 @@ class MysqlRetryStrategy extends Ez\DbLinker\RetryStrategy\MysqlRetryStrategy
         Array $arguments
     ) {
         $this->lastError = $exception;
-        return parent::shouldRetry($exception, $connection, $method, $arguments);
+        return array_reduce($this->handlers, function($retry, Closure $handler) use ($exception, $connection) {
+            return $retry || $handler($exception, $connection);
+        }, false) || parent::shouldRetry($exception, $connection, $method, $arguments);
     }
 
     public function lastError()
     {
         return $this->lastError;
+    }
+
+    public function addHandler(Closure $handler)
+    {
+        $this->handlers[] = $handler;
     }
 }
