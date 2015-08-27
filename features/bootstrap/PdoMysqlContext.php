@@ -6,6 +6,7 @@ use Behat\Behat\Context\SnippetAcceptingContext;
 class PdoMysqlContext implements Context, SnippetAcceptingContext
 {
     use FeatureContext;
+    use MySQLContext;
 
     private function params(Array $params)
     {

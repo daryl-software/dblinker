@@ -2,7 +2,6 @@
 
 namespace Ez\DbLinker\Driver\Connection;
 
-use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Connection;
 use Doctrine\DBAL\DriverManager;
 use Ez\DbLinker\RetryStrategy;
@@ -130,7 +129,10 @@ class RetryConnection implements Connection
 
     public function close()
     {
-        $this->wrappedConnection = null;
+        if ($this->wrappedConnection !== null) {
+            $this->wrappedConnection->close();
+            $this->wrappedConnection = null;
+        }
     }
 
     public function transactionLevel()

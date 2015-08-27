@@ -74,18 +74,6 @@ class RetryStatement implements IteratorAggregate, Statement
     }
 
     /**
-     * Binds a array of values to bound parameters.
-     *
-     * @param array $values
-     *
-     * @return boolean
-     */
-    private function _bindValues($values)
-    {
-        return $this->statement->_bindValues($values);
-    }
-
-    /**
      * {@inheritdoc}
      */
     public function fetch($fetchMode = null)
@@ -162,6 +150,6 @@ class RetryStatement implements IteratorAggregate, Statement
      */
     public function getIterator()
     {
-        return $this->statement->getIterator();
+        return $this->statement;
     }
 }

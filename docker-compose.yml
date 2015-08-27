@@ -19,11 +19,19 @@ behat:
     volumes_from:
         - vendor
     links:
-        - db
-db:
+        - mysql
+        - postgresql
+mysql:
     image: mysql:5.7
     environment:
         MYSQL_DATABASE: db
         MYSQL_USER: user
         MYSQL_PASSWORD: password
         MYSQL_ROOT_PASSWORD: rootpassword
+postgresql:
+    image: postgres:9.4
+    environment:
+        POSTGRES_DATABASE: db
+        POSTGRES_USER: user
+        POSTGRES_PASSWORD: password
+        POSTGRES_ROOT_PASSWORD: password

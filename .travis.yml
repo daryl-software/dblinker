@@ -6,8 +6,16 @@ php:
     - "5.6"
     - "7.0"
 
+addons:
+    postgresql: "9.4"
+
 before_script:
     - composer install
+    - psql -c "create role admin login createdb password 'adminpassword' superuser ;" -U postgres
+    - psql -c "create role behat login createdb password 'behatpassword';" -U postgres
+    - psql -c 'create database behat OWNER=behat;' -U postgres
+    - psql -c 'create database dblinker_test OWNER=behat;' -U postgres
+    - psql -c 'create database forbidden_db;'
     - mysql -e 'create database dblinker_test;'
     - mysql -e 'create database forbidden_db;'
     - mysql -e 'CREATE USER "behat"@"localhost" IDENTIFIED BY "behatpassword";'
@@ -18,8 +26,9 @@ script:
     - vendor/bin/behat -s $BEHAT_DB_DRIVER --tags ~@skip-travis
 
 env:
-    - BEHAT_DB_DRIVER=mysqli DBLINKER_DB_1_ENV_MYSQL_DATABASE=dblinker_test DBLINKER_DB_1_PORT_3306_TCP_ADDR=127.0.0.1 DBLINKER_DB_1_ENV_MYSQL_USER=behat DBLINKER_DB_1_ENV_MYSQL_PASSWORD=behatpassword DBLINKER_DB_1_ENV_MYSQL_ROOT_PASSWORD=
-    - BEHAT_DB_DRIVER=pdo_mysql DBLINKER_DB_1_ENV_MYSQL_DATABASE=dblinker_test DBLINKER_DB_1_PORT_3306_TCP_ADDR=127.0.0.1 DBLINKER_DB_1_ENV_MYSQL_USER=behat DBLINKER_DB_1_ENV_MYSQL_PASSWORD=behatpassword DBLINKER_DB_1_ENV_MYSQL_ROOT_PASSWORD=
+    - BEHAT_DB_DRIVER=mysqli DBLINKER_MYSQL_1_ENV_MYSQL_DATABASE=dblinker_test DBLINKER_MYSQL_1_PORT_3306_TCP_ADDR=127.0.0.1 DBLINKER_MYSQL_1_ENV_MYSQL_USER=behat DBLINKER_MYSQL_1_ENV_MYSQL_PASSWORD=behatpassword DBLINKER_MYSQL_1_ENV_MYSQL_ROOT_PASSWORD=
+    - BEHAT_DB_DRIVER=pdo_mysql DBLINKER_MYSQL_1_ENV_MYSQL_DATABASE=dblinker_test DBLINKER_MYSQL_1_PORT_3306_TCP_ADDR=127.0.0.1 DBLINKER_MYSQL_1_ENV_MYSQL_USER=behat DBLINKER_MYSQL_1_ENV_MYSQL_PASSWORD=behatpassword DBLINKER_MYSQL_1_ENV_MYSQL_ROOT_PASSWORD=
+    - BEHAT_DB_DRIVER=pdo_pgsql DBLINKER_POSTGRESQL_1_ENV_POSTGRES_DATABASE=dblinker_test DBLINKER_POSTGRESQL_1_PORT_5432_TCP_ADDR=127.0.0.1 DBLINKER_POSTGRESQL_1_ENV_POSTGRES_USER=behat DBLINKER_POSTGRESQL_1_ENV_POSTGRES_PASSWORD=behatpassword DBLINKER_POSTGRES_1_ENV_POSTGRES_ROOT_USER=admin DBLINKER_POSTGRES_1_ENV_POSTGRES_ROOT_PASSWORD=adminpassword
 
 matrix:
     allow_failures:

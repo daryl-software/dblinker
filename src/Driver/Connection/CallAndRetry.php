@@ -17,7 +17,7 @@ trait CallAndRetry
             try {
                 return @call_user_func_array([$this->wrappedObject(), $method], $arguments);
             } catch (DBALException $exception) {
-                if (!$this->retryStrategy->shouldRetry(
+                if (!$this->retryStrategy()->shouldRetry(
                     $exception,
                     $this->retryConnection(),
                     $method,
