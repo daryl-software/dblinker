@@ -1,4 +1,4 @@
-@retry @master-slaves
+@retry @master-slaves @skip-pdo-pgsql
 Feature: Retry Master/Slaves
 
     Scenario: ACCESS_DENIED_ERROR restart on another slave
@@ -35,9 +35,9 @@ Feature: Retry Master/Slaves
           And "conn" retry limit should be 1
           And "conn" should have 2 slaves
 
-    Scenario: MySQL has Gone Away
+    Scenario: database has Gone Away
         Given a retry master/slaves connection "conn" with 2 slaves limited to 1 retry
-          And MySQL has Gone Away on "conn"
+          And database has Gone Away on "conn"
          When I query "SELECT 1" on "conn"
          Then the last query succeeded on "conn"
           And the last error code should be 2006 on "conn"

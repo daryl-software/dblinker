@@ -1,5 +1,6 @@
 <?php
 
+use Doctrine\DBAL\Exception\TableNotFoundException;
 use Doctrine\DBAL\DriverManager;
 
 trait FeatureContext
@@ -10,22 +11,7 @@ trait FeatureContext
     /**
      * @BeforeScenario
      */
-    public function clearConnections()
-    {
-        $this->connections = [
-            '@master' => [
-                'params' => $this->masterParams(),
-                'instance' => null,
-                'last-result' => null,
-                'last-error' => null,
-            ]
-        ];
-        $connection = $this->rootConnection();
-        $connection->exec("SET GLOBAL MAX_CONNECTIONS = 50");
-        $connection->close();
-        $connection = null;
-        gc_collect_cycles();
-    }
+    abstract public function clearConnections();
 
     /**
      * @BeforeScenario
@@ -50,16 +36,7 @@ trait FeatureContext
         assert($n === 0, "There is $n active connection(s) on the test server");
     }
 
-    private function activeConnectionsCount()
-    {
-        $connection = $this->rootConnection();
-        gc_collect_cycles();
-        $n = (int)$connection->fetchAll("show status like 'Threads_connected'")[0]['Value'];
-        $connection->close();
-        $connection = null;
-        gc_collect_cycles();
-        return $n - 1;
-    }
+    abstract protected function activeConnectionsCount();
 
     private function rootConnection()
     {
@@ -87,15 +64,7 @@ trait FeatureContext
      * @Given the server accept :n more connection
      * @Given the server accept :n more connections
      */
-    public function theServerAcceptMoreConnections($n)
-    {
-        $n += $this->activeConnectionsCount();
-        $connection = $this->rootConnection();
-        $connection->exec("SET GLOBAL MAX_CONNECTIONS = $n");
-        $connection->close();
-        $connection = null;
-        gc_collect_cycles();
-    }
+    abstract public function theServerAcceptMoreConnections($n);
 
     /**
      * @Given a master\/slaves connection :connectionName with :slaveCount slaves
@@ -148,7 +117,7 @@ trait FeatureContext
                 'slaves' => $slaves,
                 'driverClass' => 'Ez\DbLinker\Driver\MysqlMasterSlavesDriver',
             ],
-            'retryStrategy' => new MysqlRetryStrategy($n),
+            'retryStrategy' => $this->retryStrategy($n),
         ];
         $this->connections[$connectionName] = [
             'params' => $params,
@@ -266,7 +235,7 @@ trait FeatureContext
         $params = [
             'driverClass' => 'Ez\DbLinker\Driver\MysqlRetryDriver',
             'connectionParams' => $this->masterParams($username),
-            'retryStrategy' => new MysqlRetryStrategy($n),
+            'retryStrategy' => $this->retryStrategy($n),
         ];
         $this->connections[$connectionName] = [
             'params' => $params,
@@ -299,7 +268,7 @@ trait FeatureContext
                 'slaves' => $slaves,
                 'driverClass' => 'Ez\DbLinker\Driver\MysqlMasterSlavesDriver',
             ],
-            'retryStrategy' => new MysqlRetryStrategy($n),
+            'retryStrategy' => $this->retryStrategy($n),
         ];
         $this->connections[$connectionName] = [
             'params' => $params,
@@ -319,7 +288,7 @@ trait FeatureContext
         $params = [
             'driverClass' => 'Ez\DbLinker\Driver\MysqlRetryDriver',
             'connectionParams' => $master,
-            'retryStrategy' => new MysqlRetryStrategy($n),
+            'retryStrategy' => $this->retryStrategy($n),
         ];
         $params['connectionParams']['dbname'] = $db;
         $this->connections[$connectionName] = [
@@ -332,9 +301,9 @@ trait FeatureContext
 
 
     /**
-     * @Given MySQL has Gone Away on :connectionName
+     * @Given database has Gone Away on :connectionName
      */
-    public function mysqlHasGoneAwayOn($connectionName)
+    public function databaseHasGoneAwayOn($connectionName)
     {
         $this->getConnection($connectionName)->exec('SET SESSION WAIT_TIMEOUT=1');
         usleep(1100000);
@@ -396,27 +365,6 @@ SQL;
             }
             assert(false, $message);
         }
-    }
-
-    /**
-     * @Then the last error code should be :expectedErrorCode on :connectionName
-     */
-    public function theLastExpectedErrorCodeShouldBeOn($expectedErrorCode, $connectionName)
-    {
-        $errorCodeAssertFailureMessage = "No error found, error code $expectedErrorCode expected";
-        $exception = $this->connections[$connectionName]['last-error'];
-        if ($exception === null) {
-            $exception = $this->getWrappedConnection($connectionName)->retryStrategy()->lastError();
-        }
-        $errorCode = null;
-        while ($exception !== null && !($exception instanceof \Doctrine\DBAL\Exception\DriverException)) {
-            $exception = $exception->getPrevious();
-        }
-        if ($exception !== null) {
-            $errorCode = $exception->getErrorCode();
-            $errorCodeAssertFailureMessage = "Error code is $errorCode, error code $expectedErrorCode expected";
-        }
-        assert($errorCode === (int) $expectedErrorCode, $errorCodeAssertFailureMessage);
     }
 
     /**
@@ -503,20 +451,33 @@ SQL;
     public function theLastStatementExpectedErrorCodeShouldBe($expectedErrorCode)
     {
         $errorCodeAssertFailureMessage = "No error found, error code $expectedErrorCode expected";
-        $exception = $this->lastStatementError;
-        if ($exception === null) {
-            $exception = $this->statement->connection->getWrappedConnection()->retryStrategy()->lastError();
-        }
-        $errorCode = null;
-        while ($exception !== null && !($exception instanceof \Doctrine\DBAL\Exception\DriverException)) {
-            $exception = $exception->getPrevious();
-        }
-        if ($exception !== null) {
-            $errorCode = $exception->getErrorCode();
+        $errorCode = $this->errorCode(
+            $this->lastStatementError ?:
+            $this->statement->connection->getWrappedConnection()->retryStrategy()->lastError()
+        );
+        if ($errorCode !== null) {
             $errorCodeAssertFailureMessage = "Error code is $errorCode, error code $expectedErrorCode expected";
         }
         assert($errorCode === (int) $expectedErrorCode, $errorCodeAssertFailureMessage);
     }
+
+    /**
+     * @Then the last error code should be :expectedErrorCode on :connectionName
+     */
+    public function theLastExpectedErrorCodeShouldBeOn($expectedErrorCode, $connectionName)
+    {
+        $errorCodeAssertFailureMessage = "No error found, error code $expectedErrorCode expected";
+        $errorCode = $this->errorCode(
+            $this->connections[$connectionName]['last-error'] ?:
+            $this->getWrappedConnection($connectionName)->retryStrategy()->lastError()
+        );
+        if ($errorCode !== null) {
+            $errorCodeAssertFailureMessage = "Error code is $errorCode, error code $expectedErrorCode expected";
+        }
+        assert($errorCode === (int) $expectedErrorCode, $errorCodeAssertFailureMessage);
+    }
+
+    abstract protected function errorCode($exception);
 
     private function getWrappedConnection($connectionName)
     {
@@ -535,22 +496,7 @@ SQL;
 
     protected abstract function params(Array $params);
 
-    private function masterParams($username = null, $password = '') {
-        $params = [
-            'host'          => getenv('DBLINKER_DB_1_PORT_3306_TCP_ADDR'),
-            'user'          => getenv('DBLINKER_DB_1_ENV_MYSQL_USER'),
-            'password'      => getenv('DBLINKER_DB_1_ENV_MYSQL_PASSWORD'),
-            'dbname'        => getenv('DBLINKER_DB_1_ENV_MYSQL_DATABASE'),
-        ];
-        if ($username !== null) {
-            $params['user'] = $username;
-            if ($username === 'root') {
-                $password = getenv('DBLINKER_DB_1_ENV_MYSQL_ROOT_PASSWORD');
-            }
-            $params['password'] = $password;
-        }
-        return $this->params($params);
-    }
+    abstract protected function masterParams($username = null, $password = '');
 
     /**
      * @Given table :tableName can be created automatically on :connectionName
@@ -562,38 +508,15 @@ SQL;
             Doctrine\DBAL\DBALException $exception,
             Ez\DbLinker\Driver\Connection\RetryConnection $connection
         ) use ($tableName) {
-            if (strpos($exception->getMessage(), "An exception occurred while executing 'SELECT * FROM {$tableName}':") === 0) {
+            if (
+                $exception instanceof TableNotFoundException &&
+                strpos($exception->getMessage(), $tableName) !== false
+            ) {
                 $connection->exec("CREATE TABLE {$tableName} (id INT)");
                 return true;
             }
         });
     }
-}
 
-class MysqlRetryStrategy extends Ez\DbLinker\RetryStrategy\MysqlRetryStrategy
-{
-    private $lastError = null;
-    private $handlers = [];
-
-    public function shouldRetry(
-        Doctrine\DBAL\DBALException $exception,
-        Ez\DbLinker\Driver\Connection\RetryConnection $connection,
-        $method,
-        Array $arguments
-    ) {
-        $this->lastError = $exception;
-        return array_reduce($this->handlers, function($retry, Closure $handler) use ($exception, $connection) {
-            return $retry || $handler($exception, $connection);
-        }, false) || parent::shouldRetry($exception, $connection, $method, $arguments);
-    }
-
-    public function lastError()
-    {
-        return $this->lastError;
-    }
-
-    public function addHandler(Closure $handler)
-    {
-        $this->handlers[] = $handler;
-    }
+    abstract protected function retryStrategy($n);
 }

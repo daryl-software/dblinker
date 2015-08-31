@@ -3,14 +3,14 @@
 use Behat\Behat\Context\Context;
 use Behat\Behat\Context\SnippetAcceptingContext;
 
-class MysqliContext implements Context, SnippetAcceptingContext
+class PdoPgsqlContext implements Context, SnippetAcceptingContext
 {
     use FeatureContext;
-    use MySQLContext;
+    use PostgreSQLContext;
 
     private function params(Array $params)
     {
-        $params['driver'] = 'mysqli';
+        $params['driver'] = 'pdo_pgsql';
         return $params;
     }
 }

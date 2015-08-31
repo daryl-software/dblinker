@@ -3,14 +3,14 @@ Feature: Retry
 
     Background:
         Given a retry connection "conn" limited to 1 retry
-
-    Scenario: MySQL has Gone Away
-        Given MySQL has Gone Away on "conn"
+    @skip-pdo-pgsql
+    Scenario: database has Gone Away
+        Given database has Gone Away on "conn"
          When I query "SELECT 1" on "conn"
          Then the last query succeeded on "conn"
           And the last error code should be 2006 on "conn"
           And "conn" retry limit should be 0
-
+    @skip-pdo-pgsql
     Scenario: Lock wait timeout exceeded
         Given a retry connection "once" limited to 1 retry
           And I exec "SET SESSION innodb_lock_wait_timeout = 1" on "@master"
@@ -24,50 +24,50 @@ Feature: Retry
          Then the last query failed on "conn"
           And the last error code should be 1205 on "once"
           And "once" retry limit should be 0
-    @skip-mysqli @skip-travis
+    @skip-mysqli @skip-travis @skip-pdo-pgsql
     Scenario: Deadlock found when trying to get lock
          When I create a deadlock on "conn" with "@master"
          Then the last query succeeded on "conn"
           And the last error code should be 1213 on "conn"
           And "conn" retry limit should be 0
-
+    @skip-pdo-pgsql
     Scenario: ER_DBACCESS_DENIED_ERROR don't restart
         Given a retry connection "conn" limited to 1 retry with db "forbidden_db"
          When I query "SELECT 1" on "conn"
          Then the last query failed on "conn"
           And the last error code should be 1044 on "conn"
           And "conn" retry limit should be 1
-
+    @skip-pdo-pgsql
     Scenario: ACCESS_DENIED_ERROR don't restart
         Given a retry connection "conn" limited to 1 retry with username "nobody"
          When I query "SELECT 1" on "conn"
          Then the last query failed on "conn"
           And the last error code should be 1045 on "conn"
           And "conn" retry limit should be 1
-
+    @skip-pdo-pgsql
     Scenario: ER_BAD_DB_ERROR don't restart
         Given a retry connection "conn" limited to 1 retry with db "unknown_db" and username "root"
          When I query "SELECT 1" on "conn"
          Then the last query failed on "conn"
           And the last error code should be 1049 on "conn"
           And "conn" retry limit should be 1
-
+    @skip-pdo-pgsql
     Scenario: Don't restart transaction
         Given a transaction is started on "conn"
-          And MySQL has Gone Away on "conn"
+          And database has Gone Away on "conn"
          When I query "SELECT 1" on "conn"
          Then the last query failed on "conn"
           And "conn" retry limit should be 1
-
+    @skip-pdo-pgsql
     Scenario: Restart after transaction is done
         Given a transaction is started on "conn"
          When I query "SELECT 1" on "conn"
           And I commit the transaction on "conn"
-          And MySQL has Gone Away on "conn"
+          And database has Gone Away on "conn"
           And I query "SELECT 1" on "conn"
          Then the last query succeeded on "conn"
           And "conn" retry limit should be 0
-
+    @skip-pdo-pgsql
     Scenario: Too many connections
         Given the server accept 1 more connections
           And a retry connection "conn1" limited to 1 retry

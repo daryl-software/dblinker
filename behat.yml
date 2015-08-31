@@ -10,3 +10,7 @@ default:
             contexts: [ PdoMysqlContext ]
             filters:
                 tags: ~@skip-pdo-mysql
+        pdo_pgsql:
+            contexts: [ PdoPgsqlContext ]
+            filters:
+                tags: ~@skip-pdo-pgsql
