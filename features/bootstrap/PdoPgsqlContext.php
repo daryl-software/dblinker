@@ -10,7 +10,7 @@ class PdoPgsqlContext implements Context, SnippetAcceptingContext
 
     private function params(Array $params)
     {
-        $params['driver'] = 'pdo_pgsql';
+        $params["driver"] = "pdo_pgsql";
         return $params;
     }
 }

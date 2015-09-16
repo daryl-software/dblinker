@@ -111,11 +111,11 @@ trait FeatureContext
         }
 
         $params = [
-            'driverClass' => 'Ez\DbLinker\Driver\MysqlRetryDriver',
+            'driverClass' => $this->retryDriverClass(),
             'connectionParams' => [
                 'master' => $master,
                 'slaves' => $slaves,
-                'driverClass' => 'Ez\DbLinker\Driver\MysqlMasterSlavesDriver',
+                'driverClass' => $this->masterSlaveDriverClass(),
             ],
             'retryStrategy' => $this->retryStrategy($n),
         ];
@@ -192,6 +192,7 @@ trait FeatureContext
      */
     public function iExecOn($connectionName, $sql)
     {
+        $sql = $this->prepareSql($sql);
         $this->connections[$connectionName]['last-result'] = null;
         $this->connections[$connectionName]['last-error']  = null;
         try {
@@ -233,7 +234,7 @@ trait FeatureContext
     public function aRetryConnectionLimitedToRetryWithusername($connectionName, $n, $username = null)
     {
         $params = [
-            'driverClass' => 'Ez\DbLinker\Driver\MysqlRetryDriver',
+            'driverClass' => $this->retryDriverClass(),
             'connectionParams' => $this->masterParams($username),
             'retryStrategy' => $this->retryStrategy($n),
         ];
@@ -262,7 +263,7 @@ trait FeatureContext
         }
 
         $params = [
-            'driverClass' => 'Ez\DbLinker\Driver\MysqlRetryDriver',
+            'driverClass' => $this->retryDriverClass(),
             'connectionParams' => [
                 'master' => $master,
                 'slaves' => $slaves,
@@ -286,7 +287,7 @@ trait FeatureContext
     {
         $master = $this->masterParams($username);
         $params = [
-            'driverClass' => 'Ez\DbLinker\Driver\MysqlRetryDriver',
+            'driverClass' => $this->retryDriverClass(),
             'connectionParams' => $master,
             'retryStrategy' => $this->retryStrategy($n),
         ];
@@ -446,37 +447,40 @@ SQL;
     }
 
     /**
-     * @Then the last statement error code should be :expectedErrorCode
+     * @Then the last statement error should be :errorName
      */
-    public function theLastStatementExpectedErrorCodeShouldBe($expectedErrorCode)
+    public function theLastStatementExpectedErrorCodeShouldBe($errorName)
     {
-        $errorCodeAssertFailureMessage = "No error found, error code $expectedErrorCode expected";
         $errorCode = $this->errorCode(
             $this->lastStatementError ?:
             $this->statement->connection->getWrappedConnection()->retryStrategy()->lastError()
         );
-        if ($errorCode !== null) {
-            $errorCodeAssertFailureMessage = "Error code is $errorCode, error code $expectedErrorCode expected";
-        }
-        assert($errorCode === (int) $expectedErrorCode, $errorCodeAssertFailureMessage);
+        $this->errorCodeMatchesErrorName($errorCode, $errorName);
     }
 
     /**
-     * @Then the last error code should be :expectedErrorCode on :connectionName
+     * @Then the last error should be :errorName on :connectionName
      */
-    public function theLastExpectedErrorCodeShouldBeOn($expectedErrorCode, $connectionName)
+    public function theLastErrorShouldBeOn($errorName, $connectionName)
     {
-        $errorCodeAssertFailureMessage = "No error found, error code $expectedErrorCode expected";
         $errorCode = $this->errorCode(
             $this->connections[$connectionName]['last-error'] ?:
             $this->getWrappedConnection($connectionName)->retryStrategy()->lastError()
         );
+        $this->errorCodeMatchesErrorName($errorCode, $errorName);
+    }
+
+    private function errorCodeMatchesErrorName($errorCode, $errorName)
+    {
+        $errorCodeAssertFailureMessage = "No error found, error $errorName expected";
+        $expectedErrorCode = $this->errorToCode($errorName);
         if ($errorCode !== null) {
             $errorCodeAssertFailureMessage = "Error code is $errorCode, error code $expectedErrorCode expected";
         }
-        assert($errorCode === (int) $expectedErrorCode, $errorCodeAssertFailureMessage);
+        assert((string) $errorCode === (string) $expectedErrorCode, $errorCodeAssertFailureMessage);
     }
 
+    abstract protected function errorToCode($errorName);
     abstract protected function errorCode($exception);
 
     private function getWrappedConnection($connectionName)

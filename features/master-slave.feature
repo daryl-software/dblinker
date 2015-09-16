@@ -1,4 +1,4 @@
-@master-slaves @skip-pdo-pgsql
+@master-slaves
 Feature: Master / Slaves
 
     Background:

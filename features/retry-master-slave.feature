@@ -1,11 +1,11 @@
-@retry @master-slaves @skip-pdo-pgsql
+@retry @master-slaves
 Feature: Retry Master/Slaves
 
     Scenario: ACCESS_DENIED_ERROR restart on another slave
         Given a retry master/slaves connection "conn" with 2 slaves limited to 1 retry with username "nobody"
          When I query "SELECT 1" on "conn"
          Then the last query failed on "conn"
-          And the last error code should be 1045 on "conn"
+          And the last error should be "ACCESS_DENIED" on "conn"
           And "conn" retry limit should be 0
           And "conn" should have 1 slave
 
@@ -14,7 +14,7 @@ Feature: Retry Master/Slaves
           And requests are forced on master for "conn"
          When I query "SELECT 1" on "conn"
          Then the last query failed on "conn"
-          And the last error code should be 1045 on "conn"
+          And the last error should be "ACCESS_DENIED" on "conn"
           And "conn" retry limit should be 1
           And "conn" should have 2 slaves
 
@@ -22,7 +22,7 @@ Feature: Retry Master/Slaves
         Given a retry master/slaves connection "conn" with 2 slaves limited to 1 retry with db "unknown_db" and username "root"
          When I query "SELECT 1" on "conn"
          Then the last query failed on "conn"
-          And the last error code should be 1049 on "conn"
+          And the last error should be "BAD_DB" on "conn"
           And "conn" retry limit should be 0
           And "conn" should have 1 slave
 
@@ -31,15 +31,15 @@ Feature: Retry Master/Slaves
           And requests are forced on master for "conn"
          When I query "SELECT 1" on "conn"
          Then the last query failed on "conn"
-          And the last error code should be 1049 on "conn"
+          And the last error should be "BAD_DB" on "conn"
           And "conn" retry limit should be 1
           And "conn" should have 2 slaves
-
+    @skip-pdo-pgsql
     Scenario: database has Gone Away
         Given a retry master/slaves connection "conn" with 2 slaves limited to 1 retry
           And database has Gone Away on "conn"
          When I query "SELECT 1" on "conn"
          Then the last query succeeded on "conn"
-          And the last error code should be 2006 on "conn"
+          And the last error should be "GONE_AWAY" on "conn"
           And "conn" retry limit should be 0
           And "conn" should have 2 slaves

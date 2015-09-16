@@ -4,9 +4,9 @@ namespace Ez\DbLinker\Driver;
 
 use Doctrine\DBAL\Driver\AbstractPostgreSQLDriver;
 
-class PostgreSQLRetryDriver extends AbstractPostgreSQLDriver
+class PostgresqlMasterSlavesDriver extends AbstractPostgreSQLDriver
 {
-    use RetryDriver;
+    use MasterSlavesDriver;
 
     /**
      * Gets the name of the driver.
@@ -14,6 +14,6 @@ class PostgreSQLRetryDriver extends AbstractPostgreSQLDriver
      * @return string The name of the driver.
      */
     public function getName() {
-        return 'postgresql-retry';
+        return 'postgresql-master-slaves';
     }
 }
