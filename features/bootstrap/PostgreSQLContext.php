@@ -1,7 +1,8 @@
 <?php
 
-use Doctrine\DBAL\DriverManager;
 use Behat\Behat\Tester\Exception\PendingException;
+use Doctrine\DBAL\Exception\DriverException;
+use Ez\DbLinker\Driver\Connection\RetryConnection;
 
 trait PostgreSQLContext
 {
@@ -64,19 +65,51 @@ trait PostgreSQLContext
 
     private function errorCode($exception)
     {
-        $errorsCodes = [
-            7 => 1146,
-        ];
         while ($exception !== null) {
-            if ($exception instanceof \Doctrine\DBAL\Exception\DriverException) {
-                $errorCode = $exception->getErrorCode();
-                if (array_key_exists($errorCode, $errorsCodes)) {
-                    return $errorsCodes[$errorCode];
+            if ($exception instanceof DriverException) {
+                preg_match("/SQLSTATE\[(?<errorCode>[A-Z0-9]*)\]/", $exception->getMessage(), $matches);
+                if (array_key_exists("errorCode", $matches)) {
+                    return $matches["errorCode"];
                 }
-                return $errorCode;
             }
             $exception = $exception->getPrevious();
         }
+    }
+
+    private function retryDriverClass()
+    {
+        return "Ez\DbLinker\Driver\PostgresqlRetryDriver";
+    }
+
+    private function masterSlaveDriverClass()
+    {
+        return "Ez\DbLinker\Driver\PostgresqlMasterSlavesDriver";
+    }
+
+    private function prepareSql($sql)
+    {
+        if ($sql === "SET @var = 1") {
+            return "SELECT 1";
+        }
+        return $sql;
+    }
+
+    private function errorToCode($error)
+    {
+        if ($error === null) {
+            return;
+        }
+        $errors = [
+            "BAD_DB" => "08006",
+            "ACCESS_DENIED" => "08006",
+            "DBACCESS_DENIED" => "08006",
+            "CON_COUNT" => "53300",
+            "NO_SUCH_TABLE" => "42P01",
+        ];
+        if (array_key_exists($error, $errors)) {
+            return $errors[$error];
+        }
+        return "UNKNOWN_ERROR: $error";
     }
 }
 

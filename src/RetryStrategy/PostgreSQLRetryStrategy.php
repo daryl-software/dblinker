@@ -2,21 +2,33 @@
 
 namespace Ez\DbLinker\RetryStrategy;
 
-use Ez\DbLinker\RetryStrategy;
 use Doctrine\DBAL\DBALException;
-use Ez\DbLinker\Driver\Connection\MasterSlavesConnection;
-use Ez\DbLinker\Driver\Connection\RetryConnection;
 use Doctrine\DBAL\Exception\DriverException;
-use stdClass;
+use Ez\DbLinker\RetryStrategy as RetryStrategyInterface;
 
-class PostgreSQLRetryStrategy implements RetryStrategy
+class PostgreSQLRetryStrategy implements RetryStrategyInterface
 {
-    public function shouldRetry(
-        DBALException $exception,
-        RetryConnection $connection,
-        $method,
-        array $arguments
-    ) {
-        return false;
+    use RetryStrategy;
+
+    private function errorCodeStrategies() {
+        return [
+            // CONNECTION FAILURE
+            "08006" => ["changeServer" => true],
+            // TOO MANY CONNECTIONS
+            "53300" => ["wait" => 1],
+        ];
+    }
+
+    private function errorCode(DBALException $exception)
+    {
+        while ($exception !== null) {
+            if ($exception instanceof DriverException) {
+                preg_match("/SQLSTATE\[(?<errorCode>[A-Z0-9]*)\]/", $exception->getMessage(), $matches);
+                if (array_key_exists("errorCode", $matches)) {
+                    return $matches["errorCode"];
+                }
+            }
+            $exception = $exception->getPrevious();
+        }
     }
 }

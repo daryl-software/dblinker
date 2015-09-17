@@ -80,6 +80,39 @@ trait MySQLContext
             $exception = $exception->getPrevious();
         }
     }
+
+    private function retryDriverClass()
+    {
+        return "Ez\DbLinker\Driver\MysqlRetryDriver";
+    }
+
+    private function masterSlaveDriverClass()
+    {
+        return "Ez\DbLinker\Driver\MysqlMasterSlavesDriver";
+    }
+
+    private function prepareSql($sql)
+    {
+        return $sql;
+    }
+
+    private function errorToCode($error)
+    {
+        $errors = [
+            "BAD_DB" => 1049,
+            "ACCESS_DENIED" => 1045,
+            "GONE_AWAY" => 2006,
+            "LOCK_WAIT_TIMEOUT" => 1205,
+            "DBACCESS_DENIED" => 1044,
+            "DEADLOCK" => 1213,
+            "CON_COUNT" => 1040,
+            "NO_SUCH_TABLE" => 1146,
+        ];
+        if (array_key_exists($error, $errors)) {
+            return $errors[$error];
+        }
+        return "UNKNOWN_ERROR: $error";
+    }
 }
 
 class MysqlRetryStrategy extends Ez\DbLinker\RetryStrategy\MysqlRetryStrategy
