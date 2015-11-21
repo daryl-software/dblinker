@@ -73,12 +73,7 @@ trait MySQLContext
 
     private function errorCode($exception)
     {
-        while ($exception !== null) {
-            if ($exception instanceof \Doctrine\DBAL\Exception\DriverException) {
-                return $exception->getErrorCode();
-            }
-            $exception = $exception->getPrevious();
-        }
+        return $exception->getErrorCode();
     }
 
     private function retryDriverClass()

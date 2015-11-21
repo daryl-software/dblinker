@@ -65,14 +65,8 @@ trait PostgreSQLContext
 
     private function errorCode($exception)
     {
-        while ($exception !== null) {
-            if ($exception instanceof DriverException) {
-                preg_match("/SQLSTATE\[(?<errorCode>[A-Z0-9]*)\]/", $exception->getMessage(), $matches);
-                if (array_key_exists("errorCode", $matches)) {
-                    return $matches["errorCode"];
-                }
-            }
-            $exception = $exception->getPrevious();
+        if(preg_match("/SQLSTATE\[(?<errorCode>[A-Z0-9]*)\]/", $exception->getMessage(), $matches)) {
+            return $matches["errorCode"];
         }
     }
 
