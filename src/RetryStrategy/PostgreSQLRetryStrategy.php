@@ -3,7 +3,6 @@
 namespace Ez\DbLinker\RetryStrategy;
 
 use Doctrine\DBAL\DBALException;
-use Doctrine\DBAL\Exception\DriverException;
 use Ez\DbLinker\RetryStrategy as RetryStrategyInterface;
 
 class PostgreSQLRetryStrategy implements RetryStrategyInterface
