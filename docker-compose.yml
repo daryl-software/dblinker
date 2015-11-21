@@ -1,21 +1,21 @@
 composer:
     build: config/docker/php/composer
     volumes:
-        - composer.json:/scripts/composer.json:rw
-        - composer.lock:/scripts/composer.lock:rw
-        - bin:/scripts/bin:rw
+        - ./composer.json:/scripts/composer.json:rw
+        - ./composer.lock:/scripts/composer.lock:rw
+        - ./bin:/scripts/bin:rw
     volumes_from:
         - vendor
 vendor:
     build: config/docker/php/vendor
     volumes:
-        - /scripts/vendor
+        - ./vendor/:/scripts/vendor/
 behat:
     build: config/docker/php/behat
     volumes:
-        - behat.yml:/scripts/behat.yml/:ro
-        - src:/scripts/src/:ro
-        - features:/scripts/features/:rw
+        - ./behat.yml:/scripts/behat.yml/:ro
+        - ./src:/scripts/src/:ro
+        - ./features:/scripts/features/:rw
     volumes_from:
         - vendor
     links:
