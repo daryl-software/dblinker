@@ -13,9 +13,15 @@
         }
     },
     "require": {
-        "doctrine/dbal": "~2.5"
+        "doctrine/dbal": "dev-avoid-over-nesting-exceptions"
     },
     "require-dev": {
         "behat/behat": "~3.0"
-    }
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/mathroc/dbal"
+        }
+    ]
 }

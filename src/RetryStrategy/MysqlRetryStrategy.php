@@ -33,11 +33,6 @@ class MysqlRetryStrategy implements RetryStrategyInterface
 
     private function errorCode(DBALException $exception)
     {
-        while ($exception !== null) {
-            if ($exception instanceof DriverException) {
-                return $exception->getErrorCode();
-            }
-            $exception = $exception->getPrevious();
-        }
+        return $exception->getErrorCode();
     }
 }
