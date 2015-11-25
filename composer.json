@@ -13,7 +13,7 @@
         }
     },
     "require": {
-        "doctrine/dbal": "dev-avoid-over-nesting-exceptions"
+        "doctrine/dbal": "dev-avoid-over-nesting-exceptions as 2.5.x-dev"
     },
     "require-dev": {
         "behat/behat": "~3.0"
