@@ -2,6 +2,11 @@
 
 use Doctrine\DBAL\DriverManager;
 
+use Doctrine\DBAL\DBALException;
+use Doctrine\DBAL\Driver\DriverException as DDriverException;
+use Doctrine\DBAL\Exception\DriverException as EDriverException;
+use Ez\DbLinker\Driver\Connection\RetryConnection;
+
 trait MySQLContext
 {
     private function masterParams($username = null, $password = '') {
@@ -71,9 +76,14 @@ trait MySQLContext
         return new MysqlRetryStrategy($n);
     }
 
-    private function errorCode($exception)
+    private function errorCode(Exception $exception)
     {
-        return $exception->getErrorCode();
+        if ($exception instanceof DBALException) {
+            $exception = $exception->getPrevious();
+        }
+        if ($exception instanceof DDriverException || $exception instanceof EDriverException) {
+            return $exception->getErrorCode();
+        }
     }
 
     private function retryDriverClass()
@@ -116,15 +126,13 @@ class MysqlRetryStrategy extends Ez\DbLinker\RetryStrategy\MysqlRetryStrategy
     private $handlers = [];
 
     public function shouldRetry(
-        Doctrine\DBAL\DBALException $exception,
-        Ez\DbLinker\Driver\Connection\RetryConnection $connection,
-        $method,
-        Array $arguments
+        Exception $exception,
+        RetryConnection $connection
     ) {
         $this->lastError = $exception;
         return array_reduce($this->handlers, function($retry, Closure $handler) use ($exception, $connection) {
             return $retry || $handler($exception, $connection);
-        }, false) || parent::shouldRetry($exception, $connection, $method, $arguments);
+        }, false) || parent::shouldRetry($exception, $connection);
     }
 
     public function lastError()

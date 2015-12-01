@@ -2,7 +2,7 @@
 
 namespace Ez\DbLinker\RetryStrategy;
 
-use Doctrine\DBAL\DBALException;
+use Exception;
 use Ez\DbLinker\RetryStrategy as RetryStrategyInterface;
 
 class PostgreSQLRetryStrategy implements RetryStrategyInterface
@@ -18,7 +18,7 @@ class PostgreSQLRetryStrategy implements RetryStrategyInterface
         ];
     }
 
-    private function errorCode(DBALException $exception)
+    private function errorCode(Exception $exception)
     {
         if (preg_match("/SQLSTATE\[(?<errorCode>[A-Z0-9]*)\]/", $exception->getMessage(), $matches)) {
             return $matches["errorCode"];

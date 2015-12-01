@@ -4,7 +4,6 @@ namespace Ez\DbLinker\Driver\Connection;
 
 use IteratorAggregate;
 use Doctrine\DBAL\Driver\Statement;
-use Ez\DbLinker\Driver\Connection\RetryConnection;
 use Ez\DbLinker\RetryStrategy;
 
 class RetryStatement implements IteratorAggregate, Statement
@@ -30,31 +29,9 @@ class RetryStatement implements IteratorAggregate, Statement
      */
     public function execute($params = NULL)
     {
-        return (bool)$this->callAndRetry(__FUNCTION__, func_get_args());
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    private function wrappedObject()
-    {
-        return $this->statement;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    private function retryConnection()
-    {
-        return $this->retryConnection;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    private function retryStrategy()
-    {
-        return $this->retryStrategy;
+        return (bool)$this->callAndRetry(function () use ($params) {
+            return $this->statement->execute($params);
+        }, $this->retryStrategy, $this->retryConnection);
     }
 
     /**

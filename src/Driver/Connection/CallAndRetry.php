@@ -2,26 +2,23 @@
 
 namespace Ez\DbLinker\Driver\Connection;
 
-use Doctrine\DBAL\DBALException;
+use Exception;
+use Ez\DbLinker\RetryStrategy;
 
 trait CallAndRetry
 {
     /**
-     * call $method woth $arguments and retry if necessary
-     * @param  string $method    method name
-     * @param  array  $arguments [description]
+     * call $callable and retry if necessary
      */
-    private function callAndRetry($method, array $arguments)
+    private function callAndRetry(callable $callable, RetryStrategy $strategy, RetryConnection $connection)
     {
         do {
             try {
-                return @call_user_func_array([$this->wrappedObject(), $method], $arguments);
-            } catch (DBALException $exception) {
-                if (!$this->retryStrategy()->shouldRetry(
+                return @$callable();
+            } catch (Exception $exception) {
+                if (!$strategy->shouldRetry(
                     $exception,
-                    $this->retryConnection(),
-                    $method,
-                    $arguments
+                    $connection
                 )) {
                     // stop trying
                     throw $exception;
@@ -29,19 +26,4 @@ trait CallAndRetry
             }
         } while (true);
     }
-
-    /**
-     * @return mixed
-     */
-    abstract protected function wrappedObject();
-
-    /**
-     * @return Ez\DbLinker\RetryConnection
-     */
-    abstract protected function retryConnection();
-
-    /**
-     * @return Ez\DbLinker\RetryStrategy
-     */
-    abstract protected function retryStrategy();
 }

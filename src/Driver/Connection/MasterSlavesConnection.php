@@ -11,8 +11,9 @@ class MasterSlavesConnection implements Connection
     private $master;
     private $slavesWeights;
     private $connection;
+    private $currentConnectionFactory;
 
-    public function __construct(Connection $master, SplObjectStorage $slavesWeights)
+    public function __construct($master, SplObjectStorage $slavesWeights)
     {
         $this->master = $master;
         $this->checkSlavesWeights($slavesWeights);
@@ -22,13 +23,7 @@ class MasterSlavesConnection implements Connection
     private function checkSlavesWeights(SplObjectStorage $slavesWeights)
     {
         foreach ($slavesWeights as $slave) {
-            $weight = $slavesWeights[$slave];
-            if (!$slave instanceof Connection) {
-                throw new Exception(
-                    'All objects attached to $slavesWeights must implements Doctrine\DBAL\Driver\Connection'
-                );
-            }
-            if ((int)$weight < 0) {
+            if ((int)$slavesWeights[$slave] < 0) {
                 throw new Exception('Slave weight must be >= 0');
             }
         }
@@ -36,23 +31,29 @@ class MasterSlavesConnection implements Connection
 
     public function connectToMaster()
     {
-        $this->connection = $this->master;
+        $this->currentConnectionFactory = $this->master;
+        $this->connection = null;
     }
 
     public function connectToSlave()
     {
+        $this->currentConnectionFactory = null;
         $this->connection = null;
     }
 
     public function isConnectedToMaster()
     {
-        return $this->connection === $this->master;
+        return $this->currentConnectionFactory === $this->master;
     }
 
     private function connection()
     {
         if ($this->connection === null) {
-            $this->connection = $this->chooseASlave();
+            if ($this->currentConnectionFactory === null) {
+                $this->currentConnectionFactory = $this->chooseASlave() ?: $this->master;
+            }
+            $factory = $this->currentConnectionFactory;
+            $this->connection = $factory();
         }
         return $this->connection;
     }
@@ -66,7 +67,7 @@ class MasterSlavesConnection implements Connection
     {
         $totalSlavesWeight = $this->totalSlavesWeight();
         if ($totalSlavesWeight < 1) {
-            return $this->master;
+            return null;
         }
         $weightTarget = mt_rand(1, $totalSlavesWeight);
         foreach ($this->slavesWeights as $slave) {
@@ -88,7 +89,8 @@ class MasterSlavesConnection implements Connection
 
     public function disableCurrentSlave()
     {
-        $this->slavesWeights->detach($this->connection);
+        $this->slavesWeights->detach($this->currentConnectionFactory);
+        $this->currentConnectionFactory = null;
         $this->connection = null;
     }
 
