@@ -63,7 +63,7 @@ trait PostgreSQLContext
     }
 
 
-    private function errorCode($exception)
+    private function errorCode(Exception $exception)
     {
         if(preg_match("/SQLSTATE\[(?<errorCode>[A-Z0-9]*)\]/", $exception->getMessage(), $matches)) {
             return $matches["errorCode"];
@@ -113,15 +113,13 @@ class PostgreSQLRetryStrategy extends Ez\DbLinker\RetryStrategy\PostgreSQLRetryS
     private $handlers = [];
 
     public function shouldRetry(
-        Doctrine\DBAL\DBALException $exception,
-        Ez\DbLinker\Driver\Connection\RetryConnection $connection,
-        $method,
-        Array $arguments
+        Exception $exception,
+        RetryConnection $connection
     ) {
         $this->lastError = $exception;
         return array_reduce($this->handlers, function($retry, Closure $handler) use ($exception, $connection) {
             return $retry || $handler($exception, $connection);
-        }, false) || parent::shouldRetry($exception, $connection, $method, $arguments);
+        }, false) || parent::shouldRetry($exception, $connection);
     }
 
     public function lastError()

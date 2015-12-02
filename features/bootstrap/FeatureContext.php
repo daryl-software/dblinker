@@ -1,7 +1,8 @@
 <?php
 
-use Doctrine\DBAL\Exception\TableNotFoundException;
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Exception\TableNotFoundException;
+use Ez\DbLinker\Driver\Connection\RetryConnection;
 
 trait FeatureContext
 {
@@ -135,7 +136,7 @@ trait FeatureContext
     {
         $connection = $this->getWrappedConnection($connectionName);
         if ($connection instanceof Ez\DbLinker\Driver\Connection\RetryConnection) {
-            $connection = $connection->wrappedConnection()->getWrappedConnection();
+            $connection = $connection->wrappedConnection();
         }
         $connection->connectToMaster();
     }
@@ -315,7 +316,7 @@ trait FeatureContext
      */
     public function retryLimitShouldBe($connectionName, $n)
     {
-        $retryLimit = $this->getWrappedConnection($connectionName)->retryStrategy()->retryLimit();
+        $retryLimit = $this->connections[$connectionName]['params']['retryStrategy']->retryLimit();
         assert($retryLimit === (int) $n, "Retry limit is $retryLimit, $n expected.");
     }
 
@@ -384,7 +385,7 @@ SQL;
     {
         $connection = $this->getWrappedConnection($connectionName);
         if ($connection instanceof \Ez\DbLinker\Driver\Connection\RetryConnection) {
-            $connection = $connection->wrappedConnection()->getWrappedConnection();
+            $connection = $connection->wrappedConnection();
         }
         $slaveCount = $connection->slaves()->count();
         assert($slaveCount === (int)$n, "Slaves count is $slaveCount, $n expected.");
@@ -447,25 +448,13 @@ SQL;
     }
 
     /**
-     * @Then the last statement error should be :errorName
-     */
-    public function theLastStatementExpectedErrorCodeShouldBe($errorName)
-    {
-        $errorCode = $this->errorCode(
-            $this->lastStatementError ?:
-            $this->statement->connection->getWrappedConnection()->retryStrategy()->lastError()
-        );
-        $this->errorCodeMatchesErrorName($errorCode, $errorName);
-    }
-
-    /**
      * @Then the last error should be :errorName on :connectionName
      */
     public function theLastErrorShouldBeOn($errorName, $connectionName)
     {
         $errorCode = $this->errorCode(
             $this->connections[$connectionName]['last-error'] ?:
-            $this->getWrappedConnection($connectionName)->retryStrategy()->lastError()
+            $retryStrategy = $this->connections[$connectionName]['params']['retryStrategy']->lastError()
         );
         $this->errorCodeMatchesErrorName($errorCode, $errorName);
     }
@@ -481,7 +470,7 @@ SQL;
     }
 
     abstract protected function errorToCode($errorName);
-    abstract protected function errorCode($exception);
+    abstract protected function errorCode(Exception $exception);
 
     private function getWrappedConnection($connectionName)
     {
@@ -507,15 +496,12 @@ SQL;
      */
     public function tableCanBeCreatedAutomaticallyOn($tableName, $connectionName)
     {
-        $connection = $this->getWrappedConnection($connectionName);
-        $connection->retryStrategy()->addHandler(function (
-            Doctrine\DBAL\DBALException $exception,
-            Ez\DbLinker\Driver\Connection\RetryConnection $connection
+        $retryStrategy = $this->connections[$connectionName]['params']['retryStrategy'];
+        $retryStrategy->addHandler(function (
+            Exception $exception,
+            RetryConnection $connection
         ) use ($tableName) {
-            if (
-                $exception instanceof TableNotFoundException &&
-                strpos($exception->getMessage(), $tableName) !== false
-            ) {
+            if (strpos($exception->getMessage(), $tableName) !== false) {
                 $connection->exec("CREATE TABLE {$tableName} (id INT)");
                 return true;
             }

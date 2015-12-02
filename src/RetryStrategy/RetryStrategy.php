@@ -2,8 +2,8 @@
 
 namespace Ez\DbLinker\RetryStrategy;
 
+use Exception;
 use stdClass;
-use Doctrine\DBAL\DBALException;
 use Ez\DbLinker\Driver\Connection\MasterSlavesConnection;
 use Ez\DbLinker\Driver\Connection\RetryConnection;
 
@@ -16,17 +16,13 @@ trait RetryStrategy
         $this->retryLimit = $retryLimit;
     }
 
-    public function shouldRetry(
-        DBALException $exception,
-        RetryConnection $connection,
-        $method,
-        array $arguments
-    ) {
+    public function shouldRetry(Exception $exception, RetryConnection $connection) {
         if (!$this->canRetry($connection)) {
             return false;
         }
         $strategy = $this->errorCodeStrategy($this->errorCode($exception));
-        return $this->applyStrategy($strategy, $connection);
+        $res = $this->applyStrategy($strategy, $connection);
+        return $res;
     }
 
     public function retryLimit()
@@ -34,9 +30,9 @@ trait RetryStrategy
         return $this->retryLimit > 0 ? (int) $this->retryLimit : 0;
     }
 
-    private function canRetry(RetryConnection $connection = null)
+    private function canRetry(RetryConnection $connection)
     {
-        return $this->retryLimit > 0 && ($connection === null || $connection->transactionLevel() === 0);
+        return $this->retryLimit > 0 && $connection->transactionLevel() === 0;
     }
 
     private function errorCodeStrategy($errorCode)
@@ -72,7 +68,7 @@ trait RetryStrategy
         if (!$strategy->changeServer) {
             return true;
         }
-        $wrappedConnection = $connection->wrappedConnection()->getWrappedConnection();
+        $wrappedConnection = $connection->wrappedConnection();
         if ($wrappedConnection instanceof MasterSlavesConnection && !$wrappedConnection->isConnectedToMaster()) {
             $wrappedConnection->disableCurrentSlave();
             return true;
@@ -88,5 +84,5 @@ trait RetryStrategy
     }
 
     protected abstract function errorCodeStrategies();
-    protected abstract function errorCode(DBALException $exception);
+    protected abstract function errorCode(Exception $exception);
 }

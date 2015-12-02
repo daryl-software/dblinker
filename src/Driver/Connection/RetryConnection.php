@@ -30,7 +30,7 @@ class RetryConnection implements Connection
      */
     public function prepare($prepareString) {
         return new RetryStatement(
-            $this->callAndRetry(__FUNCTION__, func_get_args()),
+            $this->callWrappedConnectionAndRetry(__FUNCTION__, func_get_args()),
             $this,
             $this->retryStrategy
         );
@@ -42,7 +42,7 @@ class RetryConnection implements Connection
      * @return \Doctrine\DBAL\Driver\Statement
      */
     public function query() {
-        return $this->callAndRetry(__FUNCTION__, func_get_args());
+        return $this->callWrappedConnectionAndRetry(__FUNCTION__, func_get_args());
     }
 
     /**
@@ -54,7 +54,7 @@ class RetryConnection implements Connection
      * @return string
      */
     public function quote($input, $type = \PDO::PARAM_STR) {
-        return $this->callAndRetry(__FUNCTION__, func_get_args());
+        return $this->callWrappedConnectionAndRetry(__FUNCTION__, func_get_args());
     }
 
     /**
@@ -65,7 +65,7 @@ class RetryConnection implements Connection
      * @return integer
      */
     public function exec($statement) {
-        return $this->callAndRetry(__FUNCTION__, func_get_args());
+        return $this->callWrappedConnectionAndRetry(__FUNCTION__, func_get_args());
     }
 
     /**
@@ -76,7 +76,7 @@ class RetryConnection implements Connection
      * @return string
      */
     public function lastInsertId($name = null) {
-        return $this->callAndRetry(__FUNCTION__, func_get_args());
+        return $this->callWrappedConnectionAndRetry(__FUNCTION__, func_get_args());
     }
 
     /**
@@ -86,7 +86,7 @@ class RetryConnection implements Connection
      */
     public function beginTransaction() {
         $this->transactionLevel++;
-        return $this->callAndRetry(__FUNCTION__, func_get_args());
+        return $this->callWrappedConnectionAndRetry(__FUNCTION__, func_get_args());
     }
 
     /**
@@ -96,7 +96,7 @@ class RetryConnection implements Connection
      */
     public function commit() {
         $this->transactionLevel--;
-        return $this->callAndRetry(__FUNCTION__, func_get_args());
+        return $this->callWrappedConnectionAndRetry(__FUNCTION__, func_get_args());
     }
 
     /**
@@ -106,7 +106,7 @@ class RetryConnection implements Connection
      */
     public function rollBack() {
         $this->transactionLevel--;
-        return $this->callAndRetry(__FUNCTION__, func_get_args());
+        return $this->callWrappedConnectionAndRetry(__FUNCTION__, func_get_args());
     }
 
     /**
@@ -115,7 +115,7 @@ class RetryConnection implements Connection
      * @return string|null The error code, or null if no operation has been run on the database handle.
      */
     public function errorCode() {
-        return $this->callAndRetry(__FUNCTION__, func_get_args());
+        return $this->callWrappedConnectionAndRetry(__FUNCTION__, func_get_args());
     }
 
     /**
@@ -124,15 +124,12 @@ class RetryConnection implements Connection
      * @return array
      */
     public function errorInfo() {
-        return $this->callAndRetry(__FUNCTION__, func_get_args());
+        return $this->callWrappedConnectionAndRetry(__FUNCTION__, func_get_args());
     }
 
     public function close()
     {
-        if ($this->wrappedConnection !== null) {
-            $this->wrappedConnection->close();
-            $this->wrappedConnection = null;
-        }
+        $this->wrappedConnection = null;
     }
 
     public function transactionLevel()
@@ -140,26 +137,20 @@ class RetryConnection implements Connection
         return $this->transactionLevel;
     }
 
-    private function wrappedObject()
+    private function callWrappedConnectionAndRetry($method, array $arguments)
     {
-        return $this->wrappedConnection();
+        return $this->callAndRetry(function () use ($method, $arguments) {
+            return call_user_func_array([$this->wrappedConnection(), $method], $arguments);
+        }, $this->retryStrategy, $this);
     }
 
     public function wrappedConnection()
     {
         if ($this->wrappedConnection === null) {
-            $this->wrappedConnection = DriverManager::getConnection($this->wrappedConnectionParams);
+            $this->wrappedConnection = DriverManager::getConnection(
+                $this->wrappedConnectionParams
+            )->getWrappedConnection();
         }
         return $this->wrappedConnection;
-    }
-
-    public function retryStrategy()
-    {
-        return $this->retryStrategy;
-    }
-
-    public function retryConnection()
-    {
-        return $this;
     }
 }

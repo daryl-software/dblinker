@@ -3,7 +3,6 @@
 namespace Ez\DbLinker\Driver;
 
 use \Doctrine\DBAL\Connection;
-use \Doctrine\DBAL\DriverManager;
 use Ez\DbLinker\Driver\Connection\RetryConnection;
 
 trait RetryDriver

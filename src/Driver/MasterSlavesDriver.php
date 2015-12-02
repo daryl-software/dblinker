@@ -23,11 +23,15 @@ trait MasterSlavesDriver
     public function connect(Array $params, $username = null, $password = null, Array $driverOptions = []) {
         $driverKey = array_key_exists('driverClass', $params['master']) ? 'driverClass' : 'driver';
         $driverValue = $params['master'][$driverKey];
-        $master = DriverManager::getConnection($params['master']);
+        $master = function () use ($params) {
+            return DriverManager::getConnection($params['master'])->getWrappedConnection();
+        };
         $slaves = new SplObjectStorage;
         foreach ($params['slaves'] as $slaveParams) {
             $slaveParams[$driverKey] = $driverValue;
-            $slaves->attach(DriverManager::getConnection($slaveParams), $slaveParams['weight']);
+            $slaves->attach(function () use ($slaveParams) {
+                return DriverManager::getConnection($slaveParams)->getWrappedConnection();
+            }, $slaveParams['weight']);
         }
         return new MasterSlavesConnection($master, $slaves);
     }

@@ -2,8 +2,9 @@
 
 namespace Ez\DbLinker\RetryStrategy;
 
-use Doctrine\DBAL\DBALException;
-use Doctrine\DBAL\Exception\DriverException;
+use Exception;
+use Doctrine\DBAL\Driver\DriverException as DDriverException;
+use Doctrine\DBAL\Exception\DriverException as EDriverException;
 use Ez\DbLinker\RetryStrategy as RetryStrategyInterface;
 
 class MysqlRetryStrategy implements RetryStrategyInterface
@@ -31,9 +32,9 @@ class MysqlRetryStrategy implements RetryStrategyInterface
         ];
     }
 
-    private function errorCode(DBALException $exception)
+    private function errorCode(Exception $exception)
     {
-        if ($exception instanceof DriverException) {
+        if ($exception instanceof DDriverException || $exception instanceof EDriverException) {
             return $exception->getErrorCode();
         }
     }

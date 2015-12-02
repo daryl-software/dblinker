@@ -2,15 +2,13 @@
 
 namespace Ez\DbLinker;
 
-use Doctrine\DBAL\DBALException;
+use Exception;
 use Ez\DbLinker\Driver\Connection\RetryConnection;
 
 interface RetryStrategy
 {
     public function shouldRetry(
-        DBALException $exception,
-        RetryConnection $connection,
-        $method,
-        Array $arguments
+        Exception $exception,
+        RetryConnection $connection
     );
 }

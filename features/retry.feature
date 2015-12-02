@@ -83,4 +83,4 @@ Feature: Retry
          When I prepare a statement "SELECT * FROM not_here_yet" on "conn"
           And I execute this statement
          Then the last statement succeeded
-          And the last statement error should be "NO_SUCH_TABLE"
+          And the last error should be "NO_SUCH_TABLE" on "conn"
