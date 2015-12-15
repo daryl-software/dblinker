@@ -6,10 +6,11 @@ use Doctrine\DBAL\Driver\Connection;
 use Doctrine\DBAL\DriverManager;
 use Ez\DbLinker\RetryStrategy;
 
-class RetryConnection implements Connection
+class RetryConnection implements Connection, ConnectionWrapper
 {
+    use ConnectionWrapperTrait;
+
     private $wrappedConnectionParams;
-    private $wrappedConnection;
     private $retryStrategy;
     private $transactionLevel = 0;
 
@@ -144,13 +145,12 @@ class RetryConnection implements Connection
         }, $this->retryStrategy, $this);
     }
 
-    public function wrappedConnection()
+    protected function wrap()
     {
-        if ($this->wrappedConnection === null) {
-            $this->wrappedConnection = DriverManager::getConnection(
-                $this->wrappedConnectionParams
-            )->getWrappedConnection();
-        }
-        return $this->wrappedConnection;
+        $connection = $this->wrappedConnection = DriverManager::getConnection(
+            $this->wrappedConnectionParams
+        );
+        $this->wrappedConnection = $connection->getWrappedConnection();
+        $this->wrappedDriver = $connection->getDriver();
     }
 }

@@ -2,28 +2,30 @@
 
 namespace Ez\DbLinker\Driver\Connection;
 
-use Doctrine\DBAL\Driver\Connection;
-use SplObjectStorage;
 use Exception;
+use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Driver\Connection;
 
-class MasterSlavesConnection implements Connection
+class MasterSlavesConnection implements Connection, ConnectionWrapper
 {
-    private $master;
-    private $slavesWeights;
-    private $connection;
-    private $currentConnectionFactory;
+    use ConnectionWrapperTrait;
 
-    public function __construct($master, SplObjectStorage $slavesWeights)
+    private $master;
+    private $slaves;
+    private $currentConnectionParams;
+    private $currentSlave;
+
+    public function __construct(array $master, array $slaves)
     {
         $this->master = $master;
-        $this->checkSlavesWeights($slavesWeights);
-        $this->slavesWeights = $slavesWeights;
+        $this->checkSlaves($slaves);
+        $this->slaves = $slaves;
     }
 
-    private function checkSlavesWeights(SplObjectStorage $slavesWeights)
+    private function checkSlaves(array $slaves)
     {
-        foreach ($slavesWeights as $slave) {
-            if ((int)$slavesWeights[$slave] < 0) {
+        foreach ($slaves as $slave) {
+            if ((int)$slave['weight'] < 0) {
                 throw new Exception('Slave weight must be >= 0');
             }
         }
@@ -31,36 +33,40 @@ class MasterSlavesConnection implements Connection
 
     public function connectToMaster()
     {
-        $this->currentConnectionFactory = $this->master;
-        $this->connection = null;
+        $this->currentConnectionParams = $this->master;
+        $this->currentSlave = null;
+        $this->wrappedConnection = null;
     }
 
     public function connectToSlave()
     {
-        $this->currentConnectionFactory = null;
-        $this->connection = null;
+        $this->currentConnectionParams = null;
+        $this->currentSlave = null;
+        $this->wrappedConnection = null;
     }
 
     public function isConnectedToMaster()
     {
-        return $this->currentConnectionFactory === $this->master;
+        return $this->currentSlave === null && $this->currentConnectionParams !== null;
     }
 
-    private function connection()
-    {
-        if ($this->connection === null) {
-            if ($this->currentConnectionFactory === null) {
-                $this->currentConnectionFactory = $this->chooseASlave() ?: $this->master;
-            }
-            $factory = $this->currentConnectionFactory;
-            $this->connection = $factory();
-        }
-        return $this->connection;
-    }
-
+    /**
+     * @inherit
+     */
     public function getCurrentConnection()
     {
-        return $this->connection();
+        return $this->wrappedConnection();
+    }
+
+    protected function wrap()
+    {
+        if ($this->currentConnectionParams === null) {
+            $this->currentSlave = $this->chooseASlave();
+            $this->currentConnectionParams = $this->currentSlave ? $this->slaves[$this->currentSlave] : $this->master;
+        }
+        $connection = DriverManager::getConnection($this->currentConnectionParams);
+        $this->wrappedConnection = $connection->getWrappedConnection();
+        $this->wrappedDriver = $connection->getDriver();
     }
 
     private function chooseASlave()
@@ -70,10 +76,10 @@ class MasterSlavesConnection implements Connection
             return null;
         }
         $weightTarget = mt_rand(1, $totalSlavesWeight);
-        foreach ($this->slavesWeights as $slave) {
-            $weightTarget -= $this->slavesWeights[$slave];
+        foreach ($this->slaves as $n => $slave) {
+            $weightTarget -= $slave['weight'];
             if ($weightTarget <= 0) {
-                return $slave;
+                return $n;
             }
         }
     }
@@ -81,22 +87,25 @@ class MasterSlavesConnection implements Connection
     private function totalSlavesWeight()
     {
         $weight = 0;
-        foreach ($this->slavesWeights as $slave) {
-            $weight += $this->slavesWeights[$slave];
+        foreach ($this->slaves as $slave) {
+            $weight += $slave['weight'];
         }
         return $weight;
     }
 
     public function disableCurrentSlave()
     {
-        $this->slavesWeights->detach($this->currentConnectionFactory);
-        $this->currentConnectionFactory = null;
-        $this->connection = null;
+        if ($this->currentSlave !== null) {
+            array_splice($this->slaves, $this->currentSlave, 1);
+            $this->currentSlave = null;
+        }
+        $this->currentConnectionParams = null;
+        $this->wrappedConnection = null;
     }
 
     public function slaves()
     {
-        return clone $this->slavesWeights;
+        return $this->slaves;
     }
 
     /**
@@ -109,7 +118,7 @@ class MasterSlavesConnection implements Connection
     public function prepare($prepareString)
     {
         $this->connectToMaster();
-        return $this->connection()->prepare($prepareString);
+        return $this->wrappedConnection()->prepare($prepareString);
     }
 
     /**
@@ -119,7 +128,7 @@ class MasterSlavesConnection implements Connection
      */
     public function query()
     {
-        return call_user_func_array([$this->connection(), __FUNCTION__], func_get_args());
+        return call_user_func_array([$this->wrappedConnection(), __FUNCTION__], func_get_args());
     }
 
     /**
@@ -132,7 +141,7 @@ class MasterSlavesConnection implements Connection
      */
     public function quote($input, $type = \PDO::PARAM_STR)
     {
-        return $this->connection()->quote($input, $type);
+        return $this->wrappedConnection()->quote($input, $type);
     }
 
     /**
@@ -145,7 +154,7 @@ class MasterSlavesConnection implements Connection
     public function exec($statement)
     {
         $this->connectToMaster();
-        return $this->connection()->exec($statement);
+        return $this->wrappedConnection()->exec($statement);
     }
 
     /**
@@ -157,7 +166,7 @@ class MasterSlavesConnection implements Connection
      */
     public function lastInsertId($name = null)
     {
-        return $this->connection()->lastInsertId($name);
+        return $this->wrappedConnection()->lastInsertId($name);
     }
 
     /**
@@ -168,7 +177,7 @@ class MasterSlavesConnection implements Connection
     public function beginTransaction()
     {
         $this->connectToMaster();
-        return $this->connection()->beginTransaction();
+        return $this->wrappedConnection()->beginTransaction();
     }
 
     /**
@@ -179,7 +188,7 @@ class MasterSlavesConnection implements Connection
     public function commit()
     {
         $this->connectToMaster();
-        return $this->connection()->commit();
+        return $this->wrappedConnection()->commit();
     }
 
     /**
@@ -190,7 +199,7 @@ class MasterSlavesConnection implements Connection
     public function rollBack()
     {
         $this->connectToMaster();
-        return $this->connection()->rollBack();
+        return $this->wrappedConnection()->rollBack();
     }
 
     /**
@@ -200,7 +209,7 @@ class MasterSlavesConnection implements Connection
      */
     public function errorCode()
     {
-        return $this->connection()->errorCode();
+        return $this->wrappedConnection()->errorCode();
     }
 
     /**
@@ -210,6 +219,6 @@ class MasterSlavesConnection implements Connection
      */
     public function errorInfo()
     {
-        return $this->connection()->errorInfo();
+        return $this->wrappedConnection()->errorInfo();
     }
 }

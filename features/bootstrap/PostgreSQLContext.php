@@ -11,7 +11,7 @@ trait PostgreSQLContext
             'host'          => getenv('DBLINKER_POSTGRESQL_1_PORT_5432_TCP_ADDR'),
             'user'          => getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_USER'),
             'password'      => getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_PASSWORD'),
-            'dbname'        => getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_DATABASE'),
+            'dbname'        => $this->defaultDatabaseName(),
         ];
         if ($username !== null && $username !== 'root') {
             if ($username === 'root') {
@@ -22,6 +22,11 @@ trait PostgreSQLContext
             $params['password'] = $password;
         }
         return $this->params($params);
+    }
+
+    private function defaultDatabaseName()
+    {
+        return getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_DATABASE');
     }
 
     private function activeConnectionsCount()

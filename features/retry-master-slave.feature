@@ -1,6 +1,10 @@
 @retry @master-slaves
 Feature: Retry Master/Slaves
 
+    Scenario: Get database
+        Given a retry master/slaves connection "conn" with 2 slaves limited to 1 retry
+        Then I can get the database name on "conn"
+
     Scenario: ACCESS_DENIED_ERROR restart on another slave
         Given a retry master/slaves connection "conn" with 2 slaves limited to 1 retry with username "nobody"
          When I query "SELECT 1" on "conn"

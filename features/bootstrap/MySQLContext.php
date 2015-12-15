@@ -14,7 +14,7 @@ trait MySQLContext
             'host'          => getenv('DBLINKER_MYSQL_1_PORT_3306_TCP_ADDR'),
             'user'          => getenv('DBLINKER_MYSQL_1_ENV_MYSQL_USER'),
             'password'      => getenv('DBLINKER_MYSQL_1_ENV_MYSQL_PASSWORD'),
-            'dbname'        => getenv('DBLINKER_MYSQL_1_ENV_MYSQL_DATABASE'),
+            'dbname'        => $this->defaultDatabaseName(),
         ];
         if ($username !== null) {
             $params['user'] = $username;
@@ -24,6 +24,11 @@ trait MySQLContext
             $params['password'] = $password;
         }
         return $this->params($params);
+    }
+
+    private function defaultDatabaseName()
+    {
+        return getenv('DBLINKER_MYSQL_1_ENV_MYSQL_DATABASE');
     }
 
     private function activeConnectionsCount()
