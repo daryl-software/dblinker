@@ -2,11 +2,12 @@
 
 namespace Ez\DbLinker\Driver;
 
-use \Doctrine\DBAL\Connection;
 use Ez\DbLinker\Driver\Connection\RetryConnection;
 
 trait RetryDriver
 {
+    use WrapperDriver;
+
     /**
      * Attempts to create a connection with the database.
      *
@@ -19,35 +20,5 @@ trait RetryDriver
      */
     public function connect(Array $params, $username = null, $password = null, Array $driverOptions = []) {
         return new RetryConnection($params['connectionParams'], $params['retryStrategy']);
-    }
-
-    /**
-     * Gets the SchemaManager that can be used to inspect and change the underlying
-     * database schema of the platform this driver connects to.
-     *
-     * @param \Doctrine\DBAL\Connection $conn
-     *
-     * @return \Doctrine\DBAL\Schema\AbstractSchemaManager
-     */
-    public function getSchemaManager(Connection $conn) {
-        return $this->wrappedDriver($conn)->getSchemaManager($conn);
-    }
-
-    /**
-     * Gets the name of the database connected to for this driver.
-     *
-     * @param \Doctrine\DBAL\Connection $conn
-     *
-     * @return string The name of the database.
-     */
-    public function getDatabase(Connection $conn) {
-        return $this->wrappedDriver($conn)->getDatabase($conn);
-    }
-
-    private function wrappedDriver(Connection $connection)
-    {
-        if ($connection instanceof RetryConnection) {
-            return $connection->wrappedConnection()->getDriver();
-        }
     }
 }

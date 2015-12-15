@@ -84,7 +84,7 @@ trait FeatureContext
         $params = [
             'master' => $master,
             'slaves' => $slaves,
-            'driverClass' => 'Ez\DbLinker\Driver\MysqlMasterSlavesDriver',
+            'driverClass' => $this->masterSlaveDriverClass(),
         ];
         $this->connections[$connectionName] = [
             'params' => $params,
@@ -268,7 +268,7 @@ trait FeatureContext
             'connectionParams' => [
                 'master' => $master,
                 'slaves' => $slaves,
-                'driverClass' => 'Ez\DbLinker\Driver\MysqlMasterSlavesDriver',
+                'driverClass' => $this->masterSlaveDriverClass(),
             ],
             'retryStrategy' => $this->retryStrategy($n),
         ];
@@ -278,6 +278,16 @@ trait FeatureContext
             'last-result' => null,
             'last-error' => null,
         ];
+    }
+
+    /**
+     * @Then I can get the database name on :connectionName
+     */
+    public function iCanGetTheDatabaseNameOn($connectionName)
+    {
+        $response = $this->getConnection($connectionName)->getDatabase();
+        $expectedResponse = $this->defaultDatabaseName();
+        assert($response === $expectedResponse, "'$response' matches '$expectedResponse'");
     }
 
     /**
@@ -387,7 +397,7 @@ SQL;
         if ($connection instanceof \Ez\DbLinker\Driver\Connection\RetryConnection) {
             $connection = $connection->wrappedConnection();
         }
-        $slaveCount = $connection->slaves()->count();
+        $slaveCount = count($connection->slaves());
         assert($slaveCount === (int)$n, "Slaves count is $slaveCount, $n expected.");
     }
 
