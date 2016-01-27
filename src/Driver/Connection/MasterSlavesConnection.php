@@ -33,6 +33,9 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
 
     public function connectToMaster()
     {
+        if ($this->currentConnectionParams === $this->master) {
+            return;
+        }
         $this->currentConnectionParams = $this->master;
         $this->currentSlave = null;
         $this->wrappedConnection = null;
@@ -60,6 +63,9 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
 
     protected function wrap()
     {
+        if ($this->wrappedConnection !== null) {
+            return $this->wrappedConnection;
+        }
         if ($this->currentConnectionParams === null) {
             $this->currentSlave = $this->chooseASlave();
             $this->currentConnectionParams = $this->currentSlave ? $this->slaves[$this->currentSlave] : $this->master;
