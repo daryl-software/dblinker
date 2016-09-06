@@ -68,7 +68,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
         }
         if ($this->currentConnectionParams === null) {
             $this->currentSlave = $this->chooseASlave();
-            $this->currentConnectionParams = $this->currentSlave ? $this->slaves[$this->currentSlave] : $this->master;
+            $this->currentConnectionParams = $this->currentSlave !== null ? $this->slaves[$this->currentSlave] : $this->master;
         }
         $connection = DriverManager::getConnection($this->currentConnectionParams);
         $this->wrappedConnection = $connection->getWrappedConnection();
