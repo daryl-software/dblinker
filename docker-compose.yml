@@ -22,14 +22,14 @@ behat:
         - mysql
         - postgresql
 mysql:
-    image: mysql:5.7
+    image: mariadb:10.2
     environment:
         MYSQL_DATABASE: db
         MYSQL_USER: user
         MYSQL_PASSWORD: password
         MYSQL_ROOT_PASSWORD: rootpassword
 postgresql:
-    image: postgres:9.4
+    image: postgres:9.6
     environment:
         POSTGRES_DATABASE: db
         POSTGRES_USER: user
