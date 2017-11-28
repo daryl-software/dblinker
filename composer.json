@@ -13,9 +13,10 @@
         }
     },
     "require": {
-        "php": "^7.1",
+        "php": "^7",
         "doctrine/dbal": "^2.5.2",
-        "psr/cache": "^1.0.0"
+        "psr/cache": "^1.0.0",
+        "cache/apcu-adapter": "^1.0"
     },
     "require-dev": {
         "behat/behat": "~3.0"

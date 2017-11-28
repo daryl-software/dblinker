@@ -3,6 +3,7 @@
 namespace Ez\DbLinker\Driver;
 
 use Ez\DbLinker\Driver\Connection\MasterSlavesConnection;
+use Cache\Adapter\Apcu\ApcuCachePool;
 
 trait MasterSlavesDriver
 {
@@ -25,6 +26,13 @@ trait MasterSlavesDriver
         $key = "dblinker.master-slave-config.".hash("sha256", serialize($configParams));
 
         $config = null;
+
+        // default cache, disable it with $cache = false
+        if ($cache !== false && $cache === null) {
+            $cache = new ApcuCachePool();
+            $driverOptions["config_cache"] = $cache;
+        }
+
         if ($cache !== null) {
             assert($driverOptions["config_cache"] instanceof \Psr\Cache\CacheItemPoolInterface);
             $cacheItem = $cache->getItem($key);
@@ -37,6 +45,7 @@ trait MasterSlavesDriver
 
         if ($cache !== null) {
             $cacheItem->set($config);
+            $cacheItem->expiresAt(time()+60);
             $cache->save($cacheItem);
         }
 
