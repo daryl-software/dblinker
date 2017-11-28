@@ -518,5 +518,14 @@ SQL;
         });
     }
 
+    /**
+     * @Given the cache is disable on :connectionName
+     */
+    public function theCacheIsDisable($connectionName)
+    {
+        $connection = $this->getWrappedConnection($connectionName);
+        $connection->disableCache();
+    }
+
     abstract protected function retryStrategy($n);
 }

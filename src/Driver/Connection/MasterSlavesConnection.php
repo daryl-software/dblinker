@@ -14,12 +14,18 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
     private $slaves;
     private $currentConnectionParams;
     private $currentSlave;
+    private $cache;
 
-    public function __construct(array $master, array $slaves)
+    public function __construct(array $master, array $slaves, $cache = null)
     {
         $this->master = $master;
         $this->checkSlaves($slaves);
         $this->slaves = $slaves;
+        $this->cache = $cache;
+    }
+
+    public function disableCache() {
+        return $this->cache->disableCache();
     }
 
     private function checkSlaves(array $slaves)

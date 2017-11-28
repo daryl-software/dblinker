@@ -44,4 +44,11 @@ Feature: Master / Slaves
           And "conn" is on master
 
     Scenario: Get database
-        Then I can get the database name on "conn"
+         Then I can get the database name on "conn"
+
+    Scenario: Disable cache
+        Given the cache is disable on "conn"
+         When I query "SELECT 1" on "conn"
+         Then the last query succeeded on "conn"
+          And "conn" is on master
+
