@@ -18,7 +18,7 @@ Feature: Master / Slaves
          When I exec "SET @var = 1" on "conn"
           And I query "SELECT 1" on "conn"
          Then the last query succeeded on "conn"
-          And "conn" is on master
+          And "conn" is on slave
 
     Scenario: Connect on master when there is no slaves
         Given a master/slaves connection "connMaster" with no slaves
@@ -50,5 +50,5 @@ Feature: Master / Slaves
         Given the cache is disable on "conn"
          When I query "SELECT 1" on "conn"
          Then the last query succeeded on "conn"
-          And "conn" is on master
+          And "conn" is on slave
 

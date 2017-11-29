@@ -27,8 +27,7 @@ Feature: Retry
     @skip-travis @skip-mysqli @skip-pdo-pgsql
     Scenario: Deadlock found when trying to get lock
          When I create a deadlock on "conn" with "@master"
-         Then the last query succeeded on "conn"
-          And the last error should be "DEADLOCK" on "conn"
+         Then the last error should be "DEADLOCK" on "conn"
           And "conn" retry limit should be 0
     @skip-travis-pdo-pgsql
     Scenario: ER_DBACCESS_DENIED_ERROR don't restart
