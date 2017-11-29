@@ -5,6 +5,7 @@ namespace Ez\DbLinker\Driver\Connection;
 use Exception;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Driver\Connection;
+use Doctrine\DBAL\Driver\PDOConnection;
 
 class MasterSlavesConnection implements Connection, ConnectionWrapper
 {
@@ -245,5 +246,12 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
     public function errorInfo()
     {
         return $this->wrappedConnection()->errorInfo();
+    }
+
+    public function close()
+    {
+        if (!$this->wrappedConnection() instanceof PDOConnection) {
+            return $this->wrappedConnection()->getWrappedResourceHandle()->close();
+        }
     }
 }
