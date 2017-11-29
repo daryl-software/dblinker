@@ -24,7 +24,7 @@ class Cache
             $cache = new $this->defaultCache();
         }
 
-        if ($cache !== null) {
+        if ($cache) {
             assert($cache instanceof \Psr\Cache\CacheItemPoolInterface);
         }
         $this->cache = $cache;

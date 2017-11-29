@@ -15,6 +15,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
     private $currentConnectionParams;
     private $currentSlave;
     private $cache;
+    private $forceMaster;
 
     public function __construct(array $master, array $slaves, $cache = null)
     {
@@ -22,6 +23,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
         $this->checkSlaves($slaves);
         $this->slaves = $slaves;
         $this->cache = $cache;
+        $this->forceMaster = false;
     }
 
     public function disableCache() {
@@ -37,8 +39,11 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
         }
     }
 
-    public function connectToMaster()
+    public function connectToMaster($forced = null)
     {
+        if ($forced !== null) {
+            $this->forceMaster = $forced;
+        }
         if ($this->currentConnectionParams === $this->master) {
             return;
         }
@@ -49,6 +54,10 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
 
     public function connectToSlave()
     {
+        $this->forceMaster = false;
+        if ($this->currentConnectionParams !== null && $this->currentConnectionParams !== $this->master) {
+            return;
+        }
         $this->currentConnectionParams = null;
         $this->currentSlave = null;
         $this->wrappedConnection = null;
@@ -129,7 +138,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      */
     public function prepare($prepareString)
     {
-        $this->connectToMaster();
+        $this->connectToMaster(true);
         return $this->wrappedConnection()->prepare($prepareString);
     }
 
@@ -140,6 +149,9 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      */
     public function query()
     {
+        if ($this->forceMaster !== true) {
+            $this->connectToSlave();
+        }
         return call_user_func_array([$this->wrappedConnection(), __FUNCTION__], func_get_args());
     }
 
@@ -178,6 +190,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      */
     public function lastInsertId($name = null)
     {
+        $this->forceMaster = true;
         return $this->wrappedConnection()->lastInsertId($name);
     }
 
@@ -188,7 +201,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      */
     public function beginTransaction()
     {
-        $this->connectToMaster();
+        $this->connectToMaster(true);
         return $this->wrappedConnection()->beginTransaction();
     }
 
@@ -199,7 +212,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      */
     public function commit()
     {
-        $this->connectToMaster();
+        $this->connectToMaster(false);
         return $this->wrappedConnection()->commit();
     }
 
@@ -210,7 +223,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      */
     public function rollBack()
     {
-        $this->connectToMaster();
+        $this->connectToMaster(false);
         return $this->wrappedConnection()->rollBack();
     }
 

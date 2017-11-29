@@ -138,7 +138,7 @@ trait FeatureContext
         if ($connection instanceof Ez\DbLinker\Driver\Connection\RetryConnection) {
             $connection = $connection->wrappedConnection();
         }
-        $connection->connectToMaster();
+        $connection->connectToMaster(true);
     }
 
     /**
