@@ -17,6 +17,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
     private $currentSlave;
     private $cache;
     private $forceMaster;
+    private $maxSlaveDelay = 10;
 
     public function __construct(array $master, array $slaves, $cache = null)
     {
@@ -252,6 +253,26 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
     {
         if (!$this->wrappedConnection() instanceof PDOConnection) {
             return $this->wrappedConnection()->getWrappedResourceHandle()->close();
+        }
+    }
+
+    public function checkReplication() {
+        if ($this->isConnectedToMaster()) {
+            return null;
+        }
+        $sss = $this->query("SHOW SLAVE STATUS")->fetch();
+        echo "Slave is ".$sss['Slave_IO_Running']."/".$sss['Slave_SQL_Running']." : ".$sss['Seconds_Behind_Master']."\n";
+        if ($sss['Slave_IO_Running'] === 'No' || $sss['Slave_SQL_Running'] === 'No') {
+            // slave is STOPPED
+            $this->disableCurrentSlave();
+            return false;
+        } elseif ($sss['Seconds_Behind_Master'] >= $this->maxSlaveDelay) {
+            // slave has DELAY
+            $this->disableCurrentSlave();
+            return false;
+        } else {
+            // slave is OK
+            return true;
         }
     }
 }

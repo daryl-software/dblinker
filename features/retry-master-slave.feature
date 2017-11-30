@@ -48,3 +48,15 @@ Feature: Retry Master/Slaves
           And the last error should be "BAD_DB" on "conn"
           And "conn" retry limit should be 1
           And "conn" should have 2 slaves
+
+    @skip-travis @skip-mysqli @skip-pdo-pgsql
+    Scenario: Replication is stopped on slave and query restart on another slave
+        Given a retry master/slaves connection "conn" with 2 slaves limited to 1 retry
+          And slave replication is stopped on "conn"
+         When I query "SELECT 1" on "conn"
+         Then the last query succeeded on "conn"
+          And "conn" retry limit should be 1
+          And "conn" should have 1 slaves
+
+
+

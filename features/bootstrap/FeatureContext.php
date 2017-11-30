@@ -527,5 +527,18 @@ SQL;
         $connection->disableCache();
     }
 
+    /**
+     * @Given slave replication is stopped on :connectionName
+     */
+    public function slaveReplicationIsStopped($connectionName)
+    {
+        $connection = $this->getWrappedConnection($connectionName);
+        if ($connection instanceof Ez\DbLinker\Driver\Connection\RetryConnection) {
+            $connection = $connection->wrappedConnection();
+        }
+        $connection->checkReplication();
+    }
+
+
     abstract protected function retryStrategy($n);
 }
