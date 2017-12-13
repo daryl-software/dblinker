@@ -160,10 +160,4 @@ class RetryConnection implements Connection, ConnectionWrapper
         $this->wrappedConnection = $connection->getWrappedConnection();
         $this->wrappedDriver = $connection->getDriver();
     }
-
-    public function checkReplication() {
-        if ($this->wrappedConnection instanceof MasterSlavesConnection) {
-            $this->wrappedConnection->checkReplication();
-        }
-    }
 }

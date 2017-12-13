@@ -17,7 +17,8 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
     private $currentSlave;
     private $cache;
     private $forceMaster;
-    private $maxSlaveDelay = 10;
+    private $maxSlaveDelay = 30;
+    private $slaveStatusCacheTtl = 10;
 
     public function __construct(array $master, array $slaves, $cache = null)
     {
@@ -63,6 +64,10 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
         $this->currentConnectionParams = null;
         $this->currentSlave = null;
         $this->wrappedConnection = null;
+        $this->wrap();
+        while (!$this->isSlaveOk() && $this->currentSlave !== null) {
+            $this->wrap();
+        }
     }
 
     public function isConnectedToMaster()
@@ -256,23 +261,52 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
         }
     }
 
-    public function checkReplication() {
-        if ($this->isConnectedToMaster()) {
-            return null;
+    private function hasCache() {
+        return $this->cache !== null;
+    }
+
+    private function getCacheKey() {
+        return "MasterSlavesConnection_".strtr(serialize($this->currentConnectionParams), '{}()/@:', '______|');
+    }
+
+    public function setSlaveStatus(bool $running, int $delay) {
+        if ($this->hasCache()) {
+            $this->cache->setCacheItem($this->getCacheKey(), ["running" => $running, "delay" => $delay], $this->slaveStatusCacheTtl);
         }
-        $sss = $this->query("SHOW SLAVE STATUS")->fetch();
-        echo "Slave is ".$sss['Slave_IO_Running']."/".$sss['Slave_SQL_Running']." : ".$sss['Seconds_Behind_Master']."\n";
-        if ($sss['Slave_IO_Running'] === 'No' || $sss['Slave_SQL_Running'] === 'No') {
-            // slave is STOPPED
-            $this->disableCurrentSlave();
-            return false;
-        } elseif ($sss['Seconds_Behind_Master'] >= $this->maxSlaveDelay) {
-            // slave has DELAY
-            $this->disableCurrentSlave();
-            return false;
+        return ['running' => $running, 'delay' => $delay];
+    }
+
+    private function getSlaveStatus() {
+        try {
+            $sss = $this->wrappedConnection()->query("SHOW SLAVE STATUS")->fetch();
+            if ($sss['Slave_IO_Running'] === 'No' || $sss['Slave_SQL_Running'] === 'No') {
+                // slave is STOPPED
+                return $this->setSlaveStatus(false, INF);
+            } else {
+                return $this->setSlaveStatus(true, $sss['Seconds_Behind_Master']);
+            }
+        } catch (\Exception $e) {
+            return $this->setSlaveStatus(true, 0);
+        }
+    }
+
+    public function isSlaveOk($maxdelay = null) {
+        if ($maxdelay === null) {
+            $maxdelay = $this->maxSlaveDelay;
+        }
+        if ($this->hasCache()) {
+            $status = $this->cache->getCacheItem($this->getCacheKey());
+            if ($status === null) {
+                $status = $this->getSlaveStatus();
+            }
         } else {
-            // slave is OK
-            return true;
+            $status = $this->getSlaveStatus();
         }
+        if (!$status['running'] || $status['delay'] >= $maxdelay) {
+            $this->disableCurrentSlave();
+            $this->wrap();
+            return false;
+        }
+        return true;
     }
 }

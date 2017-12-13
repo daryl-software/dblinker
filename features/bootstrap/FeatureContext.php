@@ -106,9 +106,10 @@ trait FeatureContext
 
         $slaveCount = (int) $slaveCount;
         $slaves = [];
+        $master['weight'] = 1;
         while ($slaveCount--) {
-            $master['weight'] = 1;
             $slaves[] = $master;
+            $master['weight']++;
         }
 
         $params = [
@@ -536,7 +537,9 @@ SQL;
         if ($connection instanceof Ez\DbLinker\Driver\Connection\RetryConnection) {
             $connection = $connection->wrappedConnection();
         }
-        $connection->checkReplication();
+        $connection->connectToSlave();
+        $connection->setSlaveStatus(false, 120);
+        $connection->isSlaveOk();
     }
 
 

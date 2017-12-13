@@ -10,9 +10,10 @@ Feature: Retry
          Then the last query succeeded on "conn"
           And the last error should be "GONE_AWAY" on "conn"
           And "conn" retry limit should be 0
-    @skip-pdo-pgsql
+    @skip-pdo-pgsql @skip-mysql-replic
     Scenario: Lock wait timeout exceeded
         Given a retry connection "once" limited to 1 retry
+          And a retry connection "@master" limited to 1 retry
           And I exec "SET SESSION innodb_lock_wait_timeout = 1" on "@master"
           And I exec "SET SESSION innodb_lock_wait_timeout = 1" on "once"
           And there is a table "test_lock" on "@master"
@@ -24,12 +25,13 @@ Feature: Retry
          Then the last query failed on "conn"
           And the last error should be "LOCK_WAIT_TIMEOUT" on "once"
           And "once" retry limit should be 0
-    @skip-travis @skip-mysqli @skip-pdo-pgsql
+    @skip-travis @skip-mysqli @skip-pdo-pgsql @skip-mysql-replic
     Scenario: Deadlock found when trying to get lock
+        Given a retry connection "@master" limited to 1 retry
          When I create a deadlock on "conn" with "@master"
          Then the last error should be "DEADLOCK" on "conn"
           And "conn" retry limit should be 0
-    @skip-travis-pdo-pgsql
+    @skip-travis-pdo-pgsql @skip-mysql-replic
     Scenario: ER_DBACCESS_DENIED_ERROR don't restart
         Given a retry connection "conn" limited to 1 retry with db "forbidden_db"
          When I query "SELECT 1" on "conn"
@@ -44,6 +46,7 @@ Feature: Retry
           And the last error should be "ACCESS_DENIED" on "conn"
           And "conn" retry limit should be 1
 
+    @skip-mysql-replic
     Scenario: ER_BAD_DB_ERROR don't restart
         Given a retry connection "conn" limited to 1 retry with db "unknown_db" and username "root"
          When I query "SELECT 1" on "conn"
@@ -66,7 +69,7 @@ Feature: Retry
           And I query "SELECT 1" on "conn"
          Then the last query succeeded on "conn"
           And "conn" retry limit should be 0
-    @skip-pdo-pgsql
+    @skip-pdo-pgsql @skip-mysql-replic
     Scenario: Too many connections
         Given the server accept 1 more connections
           And a retry connection "conn1" limited to 1 retry
@@ -80,6 +83,7 @@ Feature: Retry
     Scenario: Get database
         Then I can get the database name on "conn"
 
+    @skip-mysql-replic
     Scenario: No such table
         Given table "not_here_yet" can be created automatically on "conn"
          When I prepare a statement "SELECT * FROM not_here_yet" on "conn"
