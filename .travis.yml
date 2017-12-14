@@ -7,7 +7,7 @@ addons:
     postgresql: "10.0"
 
 before_script:
-    - pecl install apcu-5.1.8
+    - phpenv config-add config/docker/php/behat/apc.ini
     - composer install
     - psql -c "create role admin login createdb password 'adminpassword' superuser ;" -U postgres
     - psql -c "create role behat login createdb password 'behatpassword';" -U postgres
