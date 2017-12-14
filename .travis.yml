@@ -4,9 +4,10 @@ php:
     - "7.1"
 
 addons:
-    postgresql: "9.4"
+    postgresql: "9.6"
 
 before_script:
+    - phpenv config-add config/docker/php/behat/apc.ini
     - composer install
     - psql -c "create role admin login createdb password 'adminpassword' superuser ;" -U postgres
     - psql -c "create role behat login createdb password 'behatpassword';" -U postgres

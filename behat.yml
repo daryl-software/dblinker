@@ -14,3 +14,7 @@ default:
             contexts: [ PdoPgsqlContext ]
             filters:
                 tags: ~@skip-pdo-pgsql
+        mysqlreplic:
+            contexts: [ MysqlReplicContext ]
+            filters:
+                tags: ~@skip-mysql-replic

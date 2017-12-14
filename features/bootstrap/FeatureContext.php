@@ -106,9 +106,10 @@ trait FeatureContext
 
         $slaveCount = (int) $slaveCount;
         $slaves = [];
+        $master['weight'] = 1;
         while ($slaveCount--) {
-            $master['weight'] = 1;
             $slaves[] = $master;
+            $master['weight']++;
         }
 
         $params = [
@@ -138,7 +139,7 @@ trait FeatureContext
         if ($connection instanceof Ez\DbLinker\Driver\Connection\RetryConnection) {
             $connection = $connection->wrappedConnection();
         }
-        $connection->connectToMaster();
+        $connection->connectToMaster(true);
     }
 
     /**
@@ -517,6 +518,30 @@ SQL;
             }
         });
     }
+
+    /**
+     * @Given the cache is disable on :connectionName
+     */
+    public function theCacheIsDisable($connectionName)
+    {
+        $connection = $this->getWrappedConnection($connectionName);
+        $connection->disableCache();
+    }
+
+    /**
+     * @Given slave replication is stopped on :connectionName
+     */
+    public function slaveReplicationIsStopped($connectionName)
+    {
+        $connection = $this->getWrappedConnection($connectionName);
+        if ($connection instanceof Ez\DbLinker\Driver\Connection\RetryConnection) {
+            $connection = $connection->wrappedConnection();
+        }
+        $connection->connectToSlave();
+        $connection->setSlaveStatus(false, 120);
+        $connection->isSlaveOk();
+    }
+
 
     abstract protected function retryStrategy($n);
 }
