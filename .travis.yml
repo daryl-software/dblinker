@@ -4,7 +4,10 @@ php:
     - "7.1"
 
 addons:
-    postgresql: "9.4"
+    postgresql: "10.0"
+    apt:
+        packages:
+            - php-apcu
 
 before_script:
     - composer install
