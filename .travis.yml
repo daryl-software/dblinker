@@ -4,7 +4,7 @@ php:
     - "7.1"
 
 addons:
-    postgresql: "10.0"
+    postgresql: "9.6"
 
 before_script:
     - phpenv config-add config/docker/php/behat/apc.ini
