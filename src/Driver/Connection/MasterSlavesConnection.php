@@ -269,7 +269,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
         return "MasterSlavesConnection_".strtr(serialize($this->currentConnectionParams), '{}()/@:', '______|');
     }
 
-    public function setSlaveStatus(bool $running, int $delay) {
+    public function setSlaveStatus(bool $running, ?int $delay) {
         if ($this->hasCache()) {
             $this->cache->setCacheItem($this->getCacheKey(), ["running" => $running, "delay" => $delay], $this->slaveStatusCacheTtl);
         }
