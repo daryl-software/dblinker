@@ -83,6 +83,9 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
         }
         $weightTarget = mt_rand(1, $totalSlavesWeight);
         foreach ($this->slaves as $n => $slave) {
+            if ($slave['weight'] <= 0) {
+                continue;
+            }
             $weightTarget -= $slave['weight'];
             if ($weightTarget <= 0) {
                 return $n;
