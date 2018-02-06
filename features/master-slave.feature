@@ -51,4 +51,3 @@ Feature: Master / Slaves
          When I query "SELECT 1" on "conn"
          Then the last query succeeded on "conn"
           And "conn" is on slave
-

@@ -542,6 +542,16 @@ SQL;
         $connection->isSlaveOk();
     }
 
+    /**
+     * @Then there is :n connections established on :connectionName
+     */
+    public function thereIsConnections($connectionName, $n)
+    {
+        $connection = $this->getConnection($connectionName);
+        $connections = $connection->query("SELECT count(*) as n FROM pg_stat_activity")->fetch()['n'];
+        assert($n == $connections, "There is $connections active connection(s) on the test server");
+    }
+
 
     abstract protected function retryStrategy($n);
 }

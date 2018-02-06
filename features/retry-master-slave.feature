@@ -60,5 +60,14 @@ Feature: Retry Master/Slaves
           And "conn" retry limit should be 1
           And "conn" should have 1 slaves
 
-
+    @skip-mysqli @skip-mysql-replic @skip-travis @skip-pdo-mysql
+    Scenario: Connect only once
+        Given a retry master/slaves connection "conn" with 2 slaves limited to 1 retry
+         When I query "SELECT 1" on "conn"
+         Then I query "SELECT 2" on "conn"
+         Then I query "SELECT 3" on "conn"
+         Then I query "SELECT 4" on "conn"
+          And "conn" retry limit should be 1
+          And "conn" should have 2 slaves
+          And there is 1 connections established on "conn"
 
