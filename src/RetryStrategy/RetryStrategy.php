@@ -83,6 +83,13 @@ trait RetryStrategy
         }
     }
 
+    public function __destruct() {
+        $wrappedConnection = $connection->wrappedConnection();
+        if ($connection !== null) {
+            $connection->close();
+        }
+    }
+
     protected abstract function errorCodeStrategies();
     protected abstract function errorCode(Exception $exception);
 }

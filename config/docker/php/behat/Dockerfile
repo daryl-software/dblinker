@@ -1,4 +1,4 @@
-FROM isanosyan/php:7.1-cli-base
+FROM php:7.1
 
 RUN apt-get update
 RUN apt-get install -y git file libpq-dev php-apcu php7.1-dev php7.1-mbstring php7.1-mysql php7.1-pgsql
