@@ -3,6 +3,7 @@
 namespace Ez\DbLinker\Driver\Connection;
 
 use Doctrine\DBAL\Driver\Connection;
+use Doctrine\DBAL\Driver\PDOConnection;
 use Doctrine\DBAL\DriverManager;
 use Ez\DbLinker\RetryStrategy;
 
@@ -130,6 +131,12 @@ class RetryConnection implements Connection, ConnectionWrapper
 
     public function close()
     {
+        if ($this->wrappedConnection instanceof MasterSlavesConnection) {
+            $this->wrappedConnection->close();
+        } elseif ($this->wrappedConnection instanceof PDOConnection) {
+        } elseif (method_exists($this->wrappedConnection, "getWrappedResourceHandle")) {
+            $this->wrappedConnection->getWrappedResourceHandle()->close();
+        }
         $this->wrappedConnection = null;
     }
 

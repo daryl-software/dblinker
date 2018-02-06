@@ -5,6 +5,7 @@ namespace Ez\DbLinker\Driver\Connection;
 use Exception;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Driver\Connection;
+use Doctrine\DBAL\Driver\PDOConnection;
 
 class MasterSlavesConnection implements Connection, ConnectionWrapper
 {
@@ -14,12 +15,22 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
     private $slaves;
     private $currentConnectionParams;
     private $currentSlave;
+    private $cache;
+    private $forceMaster;
+    private $maxSlaveDelay = 30;
+    private $slaveStatusCacheTtl = 10;
 
-    public function __construct(array $master, array $slaves)
+    public function __construct(array $master, array $slaves, $cache = null)
     {
         $this->master = $master;
         $this->checkSlaves($slaves);
         $this->slaves = $slaves;
+        $this->cache = $cache;
+        $this->forceMaster = false;
+    }
+
+    public function disableCache() {
+        return $this->cache->disableCache();
     }
 
     private function checkSlaves(array $slaves)
@@ -31,8 +42,11 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
         }
     }
 
-    public function connectToMaster()
+    public function connectToMaster($forced = null)
     {
+        if ($forced !== null) {
+            $this->forceMaster = $forced;
+        }
         if ($this->currentConnectionParams === $this->master) {
             return;
         }
@@ -43,9 +57,17 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
 
     public function connectToSlave()
     {
+        $this->forceMaster = false;
+        if ($this->currentConnectionParams !== null && $this->currentConnectionParams !== $this->master) {
+            return;
+        }
         $this->currentConnectionParams = null;
         $this->currentSlave = null;
         $this->wrappedConnection = null;
+        $this->wrap();
+        while (!$this->isSlaveOk() && $this->currentSlave !== null) {
+            $this->wrap();
+        }
     }
 
     public function isConnectedToMaster()
@@ -126,7 +148,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      */
     public function prepare($prepareString)
     {
-        $this->connectToMaster();
+        $this->connectToMaster(true);
         return $this->wrappedConnection()->prepare($prepareString);
     }
 
@@ -137,6 +159,9 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      */
     public function query()
     {
+        if ($this->forceMaster !== true) {
+            $this->connectToSlave();
+        }
         return call_user_func_array([$this->wrappedConnection(), __FUNCTION__], func_get_args());
     }
 
@@ -175,6 +200,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      */
     public function lastInsertId($name = null)
     {
+        $this->forceMaster = true;
         return $this->wrappedConnection()->lastInsertId($name);
     }
 
@@ -185,7 +211,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      */
     public function beginTransaction()
     {
-        $this->connectToMaster();
+        $this->connectToMaster(true);
         return $this->wrappedConnection()->beginTransaction();
     }
 
@@ -196,7 +222,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      */
     public function commit()
     {
-        $this->connectToMaster();
+        $this->connectToMaster(false);
         return $this->wrappedConnection()->commit();
     }
 
@@ -207,7 +233,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      */
     public function rollBack()
     {
-        $this->connectToMaster();
+        $this->connectToMaster(false);
         return $this->wrappedConnection()->rollBack();
     }
 
@@ -229,5 +255,61 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
     public function errorInfo()
     {
         return $this->wrappedConnection()->errorInfo();
+    }
+
+    public function close()
+    {
+        if (!$this->wrappedConnection() instanceof PDOConnection) {
+            return $this->wrappedConnection()->getWrappedResourceHandle()->close();
+        }
+    }
+
+    private function hasCache() {
+        return $this->cache !== null;
+    }
+
+    private function getCacheKey() {
+        return "MasterSlavesConnection_".strtr(serialize($this->currentConnectionParams), '{}()/@:', '______|');
+    }
+
+    public function setSlaveStatus(bool $running, ?int $delay) {
+        if ($this->hasCache()) {
+            $this->cache->setCacheItem($this->getCacheKey(), ["running" => $running, "delay" => $delay], $this->slaveStatusCacheTtl);
+        }
+        return ['running' => $running, 'delay' => $delay];
+    }
+
+    private function getSlaveStatus() {
+        try {
+            $sss = $this->wrappedConnection()->query("SHOW SLAVE STATUS")->fetch();
+            if ($sss['Slave_IO_Running'] === 'No' || $sss['Slave_SQL_Running'] === 'No') {
+                // slave is STOPPED
+                return $this->setSlaveStatus(false, INF);
+            } else {
+                return $this->setSlaveStatus(true, $sss['Seconds_Behind_Master']);
+            }
+        } catch (\Exception $e) {
+            return $this->setSlaveStatus(true, 0);
+        }
+    }
+
+    public function isSlaveOk($maxdelay = null) {
+        if ($maxdelay === null) {
+            $maxdelay = $this->maxSlaveDelay;
+        }
+        if ($this->hasCache()) {
+            $status = $this->cache->getCacheItem($this->getCacheKey());
+            if ($status === null) {
+                $status = $this->getSlaveStatus();
+            }
+        } else {
+            $status = $this->getSlaveStatus();
+        }
+        if (!$status['running'] || $status['delay'] >= $maxdelay) {
+            $this->disableCurrentSlave();
+            $this->wrap();
+            return false;
+        }
+        return true;
     }
 }

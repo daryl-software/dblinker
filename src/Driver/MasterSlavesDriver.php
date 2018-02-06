@@ -3,10 +3,15 @@
 namespace Ez\DbLinker\Driver;
 
 use Ez\DbLinker\Driver\Connection\MasterSlavesConnection;
+use Cache\Adapter\Apcu\ApcuCachePool;
+use Ez\DbLinker\Cache;
 
 trait MasterSlavesDriver
 {
     use WrapperDriver;
+
+    private $cache;
+    private $cacheDefaultTtl = 60;
 
     /**
      * Attempts to create a connection with the database.
@@ -19,28 +24,29 @@ trait MasterSlavesDriver
      * @return \Doctrine\DBAL\Driver\Connection The database connection.
      */
     public function connect(Array $params, $username = null, $password = null, Array $driverOptions = []) {
-        $cache = array_key_exists("config_cache", $driverOptions) ? $driverOptions["config_cache"] : null;
+        $cacheDriver = array_key_exists("config_cache", $driverOptions) ? $driverOptions["config_cache"] : null;
 
         $configParams = array_intersect_key($params, array_flip(["master", "slaves"]));
         $key = "dblinker.master-slave-config.".hash("sha256", serialize($configParams));
 
         $config = null;
-        if ($cache !== null) {
-            assert($driverOptions["config_cache"] instanceof \Psr\Cache\CacheItemPoolInterface);
-            $cacheItem = $cache->getItem($key);
-            $config = $cacheItem->get();
+
+        // default cache, disable it with $cache = false
+        $cache = new Cache($cacheDriver);
+
+        if ($cache->hasCache()) {
+            $config = $cache->getCacheItem($key);
         }
 
         if ($config === null) {
             $config = $this->config($configParams, $driverOptions);
         }
 
-        if ($cache !== null) {
-            $cacheItem->set($config);
-            $cache->save($cacheItem);
+        if ($cache->hasCache()) {
+            $cache->setCacheItem($key, $config, 60);
         }
 
-        return new MasterSlavesConnection($config["master"], $config["slaves"]);
+        return new MasterSlavesConnection($config["master"], $config["slaves"], $cache);
     }
 
     private function config(array $params, array $driverOptions)
@@ -67,4 +73,5 @@ trait MasterSlavesDriver
         assert(is_callable($driverOptions["config_transform"]));
         return $driverOptions["config_transform"]($config);
     }
+
 }

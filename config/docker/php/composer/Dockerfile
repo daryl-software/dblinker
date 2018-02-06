@@ -1,4 +1,4 @@
-FROM php:5.6
+FROM php:7.1
 
 RUN apt-get update
 RUN apt-get install -y zlib1g-dev

@@ -84,6 +84,7 @@ trait RetryStrategy
     }
 
     public function __destruct() {
+        $wrappedConnection = $connection->wrappedConnection();
         if ($connection !== null) {
             $connection->close();
         }
