@@ -61,4 +61,3 @@ Feature: Retry Master/Slaves
           And "conn" should have 1 slaves
 
 
-
