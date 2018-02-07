@@ -58,7 +58,12 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
     public function connectToSlave()
     {
         $this->forceMaster = false;
-        if ($this->currentConnectionParams !== null && $this->currentConnectionParams !== $this->master) {
+        if ($this->currentConnectionParams !== null // if connection exists
+            && (
+                $this->currentConnectionParams !== $this->master // and is not a master
+                || $this->currentConnectionParams === $this->currentSlave // or is current slave
+                )
+            ) {
             return;
         }
         $this->currentConnectionParams = null;
