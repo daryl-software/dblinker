@@ -51,7 +51,7 @@ Feature: Retry Master/Slaves
           And "conn" retry limit should be 1
           And "conn" should have 2 slaves
 
-    @skip-travis @skip-mysqli @skip-pdo-pgsql
+    @skip-travis @skip-mysqli
     Scenario: Replication is stopped on slave and query restart on another slave
         Given a retry master/slaves connection "conn" with 2 slaves limited to 1 retry
           And slave replication is stopped on "conn"
