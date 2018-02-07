@@ -285,16 +285,28 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
     }
 
     private function getSlaveStatus() {
-        try {
-            $sss = $this->wrappedConnection()->query("SHOW SLAVE STATUS")->fetch();
-            if ($sss['Slave_IO_Running'] === 'No' || $sss['Slave_SQL_Running'] === 'No') {
-                // slave is STOPPED
-                return $this->setSlaveStatus(false, INF);
-            } else {
-                return $this->setSlaveStatus(true, $sss['Seconds_Behind_Master']);
+        if (stripos($this->wrappedDriver->getName(), 'pgsql') !== false) {
+            try {
+                $sss = $this->wrappedConnection()->query("SELECT CASE WHEN pg_last_xlog_receive_location() IS NULL THEN NULL WHEN pg_last_xlog_receive_location() = pg_last_xlog_replay_location() THEN '00:00:00' ELSE now() - pg_last_xact_replay_timestamp() END AS replication_lag")->fetch();
+                return $this->setSlaveStatus(true, $sss['replication_lag']);
+            } catch (\Exception $e) {
+                return $this->setSlaveStatus(false, null);
             }
-        } catch (\Exception $e) {
-            return $this->setSlaveStatus(true, 0);
+        } else {
+            try {
+                $sss = $this->wrappedConnection()->query("SHOW SLAVE STATUS")->fetch();
+                if ($sss['Slave_IO_Running'] === 'No' || $sss['Slave_SQL_Running'] === 'No') {
+                    // slave is STOPPED
+                    return $this->setSlaveStatus(false, null);
+                } else {
+                    return $this->setSlaveStatus(true, $sss['Seconds_Behind_Master']);
+                }
+            } catch (\Exception $e) {
+                if (stripos($e->getMessage(), "Access denied") !== false) {
+                    return $this->setSlaveStatus(true, 0);
+                }
+                return $this->setSlaveStatus(false, null);
+            }
         }
     }
 
