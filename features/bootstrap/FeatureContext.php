@@ -68,7 +68,7 @@ trait FeatureContext
     abstract public function theServerAcceptMoreConnections($n);
 
     /**
-     * @Given a master\/slaves connection :connectionName with :slaveCount slaves
+     * @Given a master-slaves connection :connectionName with :slaveCount slaves
      */
     public function aMasterSlavesConnectionWithSlaves($connectionName, $slaveCount)
     {
@@ -95,10 +95,10 @@ trait FeatureContext
     }
 
     /**
-     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry
-     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retries
-     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry with username :username
-     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retries with username :username
+     * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retry
+     * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retries
+     * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retry with username :username
+     * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retries with username :username
      */
     public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetriesWithusername($connectionName, $slaveCount, $n, $username = null)
     {
@@ -249,8 +249,8 @@ trait FeatureContext
     }
 
     /**
-     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry with db :db
-     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry with db :db and username :username
+     * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retry with db :db
+     * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retry with db :db and username :username
      */
     public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetryWithDbAndUsername($connectionName, $slaveCount, $n, $db, $username = null)
     {
