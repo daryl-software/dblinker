@@ -61,11 +61,13 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
         if ($this->currentConnectionParams !== null // if connection exists
             && (
                 $this->currentConnectionParams !== $this->master // and is not a master
-                || $this->currentConnectionParams === $this->currentSlave // or is current slave
+                || count($this->slaves) === 0 // or there is no slave
+                || ($this->currentSlave !== null && $this->currentConnectionParams === $this->slaves[$this->currentSlave]) // or is current slave
                 )
             ) {
             return;
         }
+        $this->close();
         $this->currentConnectionParams = null;
         $this->currentSlave = null;
         $this->wrappedConnection = null;
