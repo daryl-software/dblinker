@@ -289,7 +289,7 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
     private function getSlaveStatus() {
         if (stripos($this->wrappedDriver->getName(), 'pgsql') !== false) {
             try {
-                $sss = $this->wrappedConnection()->query("SELECT CASE WHEN pg_last_xlog_receive_location() IS NULL THEN NULL WHEN pg_last_xlog_receive_location() = pg_last_xlog_replay_location() THEN '00:00:00' ELSE now() - pg_last_xact_replay_timestamp() END AS replication_lag")->fetch();
+                $sss = $this->wrappedConnection()->query("SELECT now() - pg_last_xact_replay_timestamp() AS replication_lag")->fetch();
                 return $this->setSlaveStatus(true, $sss['replication_lag']);
             } catch (\Exception $e) {
                 return $this->setSlaveStatus(false, null);
