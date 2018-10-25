@@ -1,9 +1,8 @@
 <?php
 
 use Behat\Behat\Context\Context;
-use Behat\Behat\Context\SnippetAcceptingContext;
 
-class MysqliContext implements Context, SnippetAcceptingContext
+class MysqliContext implements Context
 {
     use FeatureContext;
     use MySQLContext;

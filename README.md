@@ -89,4 +89,5 @@ Note: You can nest a `MysqlMasterSlavesConnection` in a `MysqlRetryConnection`.
 
 To run the test suite, you need Docker & Docker-Compose:
 
+    docker-compose run composer install
     docker-compose run behat

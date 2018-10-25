@@ -8,15 +8,33 @@ trait PostgreSQLContext
 {
     private function masterParams($username = null, $password = '') {
         $params = [
-            'host'          => getenv('DBLINKER_POSTGRESQL_1_PORT_5432_TCP_ADDR'),
-            'user'          => getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_USER'),
-            'password'      => getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_PASSWORD'),
+            'host'          => getenv('DBLINKER_POSTGRESQL_MASTER_1_PORT_5432_TCP_ADDR'),
+            'user'          => getenv('DBLINKER_POSTGRESQL_MASTER_1_ENV_POSTGRES_USER'),
+            'password'      => getenv('DBLINKER_POSTGRESQL_MASTER_1_ENV_POSTGRES_PASSWORD'),
             'dbname'        => $this->defaultDatabaseName(),
         ];
         if ($username !== null && $username !== 'root') {
             if ($username === 'root') {
-                $password = getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_ROOT_PASSWORD');
-                $username = getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_ROOT_USER');
+                $password = getenv('DBLINKER_POSTGRESQL_MASTER_1_ENV_POSTGRES_ROOT_PASSWORD');
+                $username = getenv('DBLINKER_POSTGRESQL_MASTER_1_ENV_POSTGRES_ROOT_USER');
+            }
+            $params['user'] = $username;
+            $params['password'] = $password;
+        }
+        return $this->params($params);
+    }
+
+    private function slaveParams(int $number, $username = null, $password = '') {
+        $params = [
+            'host'          => getenv('DBLINKER_POSTGRESQL_SLAVE_'.$number.'_1_PORT_5432_TCP_ADDR'),
+            'user'          => getenv('DBLINKER_POSTGRESQL_SLAVE_'.$number.'_1_ENV_POSTGRES_USER'),
+            'password'      => getenv('DBLINKER_POSTGRESQL_SLAVE_'.$number.'_1_ENV_POSTGRES_PASSWORD'),
+            'dbname'        => $this->defaultDatabaseName(),
+        ];
+        if ($username !== null && $username !== 'root') {
+            if ($username === 'root') {
+                $password = getenv('DBLINKER_POSTGRESQL_SLAVE_'.$number.'_1_ENV_POSTGRES_ROOT_PASSWORD');
+                $username = getenv('DBLINKER_POSTGRESQL_SLAVE_'.$number.'_1_ENV_POSTGRES_ROOT_USER');
             }
             $params['user'] = $username;
             $params['password'] = $password;
@@ -26,7 +44,7 @@ trait PostgreSQLContext
 
     private function defaultDatabaseName()
     {
-        return getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_DATABASE');
+        return getenv('DBLINKER_POSTGRESQL_MASTER_1_ENV_POSTGRES_DB');
     }
 
     private function activeConnectionsCount()

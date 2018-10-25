@@ -1,9 +1,8 @@
 <?php
 
 use Behat\Behat\Context\Context;
-use Behat\Behat\Context\SnippetAcceptingContext;
 
-class PdoPgsqlContext implements Context, SnippetAcceptingContext
+class PdoPgsqlContext implements Context
 {
     use FeatureContext;
     use PostgreSQLContext;

@@ -42,7 +42,6 @@ trait FeatureContext
     private function rootConnection()
     {
         $params = $this->masterParams('root');
-        $dbname = $params['dbname'];
         unset($params['dbname']);
         return DriverManager::getConnection($params);
     }
@@ -70,22 +69,18 @@ trait FeatureContext
     /**
      * @Given a master-slaves connection :connectionName with :slaveCount slaves
      */
-    public function aMasterSlavesConnectionWithSlaves($connectionName, $slaveCount)
+    public function aMasterSlavesConnectionWithSlaves(string $connectionName, int $slaveCount)
     {
         $master = $this->masterParams();
-
-        $slaveCount = (int) $slaveCount;
-        $slaves = [];
-        while ($slaveCount--) {
-            $master['weight'] = $slaveCount;
-            $slaves[] = $master;
-        }
-
         $params = [
             'master' => $master,
-            'slaves' => $slaves,
+            'slaves' => [],
             'driverClass' => $this->masterSlaveDriverClass(),
         ];
+        for ($i = 1; $i <= $slaveCount; $i++) {
+            $params['slaves'][] = $this->slaveParams($i) + ['weight' => 1];
+        }
+
         $this->connections[$connectionName] = [
             'params' => $params,
             'instance' => null,

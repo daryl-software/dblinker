@@ -21,7 +21,7 @@ Feature: Master / Slaves
           And "conn" is on slave
 
     Scenario: Connect on master when there is no slaves
-        Given a master-slaves connection "connMaster" with no slaves
+        Given a master-slaves connection "connMaster" with 0 slaves
          When I query "SELECT 1" on "connMaster"
          Then the last query succeeded on "connMaster"
           And "connMaster" is on master
