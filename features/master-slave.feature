@@ -4,6 +4,11 @@ Feature: Master / Slaves
     Background:
         Given a master-slaves connection "conn" with 3 slaves
 
+    Scenario: Read prepared statement on slave
+        When I query "SELECT ?" with param 1 on "conn"
+        Then the last query succeeded on "conn"
+         And "conn" is on slave
+
     Scenario: Read request on slave
          When I query "SELECT 1" on "conn"
          Then the last query succeeded on "conn"

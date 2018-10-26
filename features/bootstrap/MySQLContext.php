@@ -11,16 +11,34 @@ trait MySQLContext
 {
     private function masterParams($username = null, $password = '') {
         $params = [
-            'host'          => getenv('DBLINKER_MYSQL_1_PORT_3306_TCP_ADDR'),
-            'user'          => getenv('DBLINKER_MYSQL_1_ENV_MYSQL_USER'),
-            'password'      => getenv('DBLINKER_MYSQL_1_ENV_MYSQL_PASSWORD'),
+            'host'          => getenv('DBLINKER_MYSQL_MASTER_1_PORT_3306_TCP_ADDR'),
+            'user'          => getenv('DBLINKER_MYSQL_MASTER_1_ENV_MYSQL_USER'),
+            'password'      => getenv('DBLINKER_MYSQL_MASTER_1_ENV_MYSQL_PASSWORD'),
             'dbname'        => $this->defaultDatabaseName(),
         ];
         if ($username !== null) {
             $params['user'] = $username;
             if ($username === 'root') {
-                $password = getenv('DBLINKER_MYSQL_1_ENV_MYSQL_ROOT_PASSWORD');
+                $password = getenv('DBLINKER_MYSQL_MASTER_1_ENV_MYSQL_ROOT_PASSWORD');
             }
+            $params['password'] = $password;
+        }
+        return $this->params($params);
+    }
+
+    private function slaveParams(int $number, $username = null, $password = '') {
+        $params = [
+            'host'          => getenv('DBLINKER_MYSQL_SLAVE_'.$number.'_1_PORT_3306_TCP_ADDR'),
+            'user'          => getenv('DBLINKER_MYSQL_SLAVE_'.$number.'_1_ENV_MYSQL_USER'),
+            'password'      => getenv('DBLINKER_MYSQL_SLAVE_'.$number.'_1_ENV_MYSQL_PASSWORD'),
+            'dbname'        => $this->defaultDatabaseName(),
+        ];
+        if ($username !== null && $username !== 'root') {
+            if ($username === 'root') {
+                $password = getenv('DBLINKER_MYSQL_SLAVE_'.$number.'_1_ENV_MYSQL_ROOT_PASSWORD');
+                $username = getenv('DBLINKER_MYSQL_SLAVE_'.$number.'_1_ENV_MYSQL_ROOT_USER');
+            }
+            $params['user'] = $username;
             $params['password'] = $password;
         }
         return $this->params($params);
@@ -28,7 +46,7 @@ trait MySQLContext
 
     private function defaultDatabaseName()
     {
-        return getenv('DBLINKER_MYSQL_1_ENV_MYSQL_DATABASE');
+        return getenv('DBLINKER_MYSQL_MASTER_1_ENV_MYSQL_DATABASE');
     }
 
     private function activeConnectionsCount()

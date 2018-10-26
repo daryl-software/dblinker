@@ -155,7 +155,12 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      */
     public function prepare($prepareString)
     {
-        $this->connectToMaster(true);
+        if (preg_match('/$\b(DELETE|UPDATE|INSERT)\b/i', $prepareString)) {
+            $this->connectToMaster();
+        } else {
+            $this->connectToSlave();
+        }
+
         return $this->wrappedConnection()->prepare($prepareString);
     }
 

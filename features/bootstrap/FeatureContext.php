@@ -146,6 +146,21 @@ trait FeatureContext
     }
 
     /**
+     * @When I query :sql with param :param on :connectionName
+     */
+    public function iQueryWithParamOn(string $sql, string $param, string $connectionName)
+    {
+        $this->connections[$connectionName]['last-result'] = null;
+        $this->connections[$connectionName]['last-error']  = null;
+        try {
+            $connection = $this->getConnection($connectionName);
+            $this->connections[$connectionName]['last-result'] = $connection->executeQuery($sql, [$param]);
+        } catch (\Exception $e) {
+            $this->connections[$connectionName]['last-error'] = $e;
+        }
+    }
+
+    /**
      * @When I query :sql on :connectionName
      */
     public function iQueryOn($connectionName, $sql)
@@ -483,6 +498,11 @@ SQL;
         return $this->getConnection($connectionName)->getWrappedConnection();
     }
 
+    /**
+     * @param $connectionName
+     * @return Doctrine\DBAL\Connection
+     * @throws \Doctrine\DBAL\DBALException
+     */
     private function getConnection($connectionName)
     {
         if ($this->connections[$connectionName]['instance'] === null) {

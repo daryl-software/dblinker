@@ -15,6 +15,7 @@ trait ConnectionWrapperTrait
 
     /**
      * @inherit
+     * @return \Doctrine\DBAL\Driver\PDOConnection
      */
     public function wrappedConnection()
     {
