@@ -31,25 +31,11 @@ Feature: Master / Slaves
          Then the last query succeeded on "connMaster"
           And "connMaster" is on master
 
-    Scenario: Force request on master
-         When I force requests on master for "conn"
-          And "conn" is on master
-
-    Scenario: Force request back on slave
-        Given requests are forced on master for "conn"
-          And I force requests on slave for "conn"
-         When I query "SELECT 1" on "conn"
-         Then the last query succeeded on "conn"
-          And "conn" is on slave
-
     Scenario: Connect on master for transaction
         Given a transaction is started on "conn"
          When I query "SELECT 1" on "conn"
          Then the last query succeeded on "conn"
           And "conn" is on master
-
-    Scenario: Get database
-         Then I can get the database name on "conn"
 
     Scenario: Disable cache
         Given the cache is disable on "conn"

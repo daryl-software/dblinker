@@ -1,7 +1,6 @@
 <?php
 
 use Doctrine\DBAL\DriverManager;
-use Doctrine\DBAL\Exception\TableNotFoundException;
 use Ez\DbLinker\Driver\Connection\RetryConnection;
 
 trait FeatureContext
@@ -73,7 +72,7 @@ trait FeatureContext
     {
         $slaves = [];
         for ($i = 1; $i <= $slaveCount; $i++) {
-            $slaves[] = $this->slaveParams($i) + ['weight' => 1];
+            $slaves[] = $this->slaveParams($i) + ['weight' => rand(1, 20)];
         }
 
         $this->connections[$connectionName] = [
@@ -98,7 +97,7 @@ trait FeatureContext
     {
         $slaves = [];
         for ($i = 1; $i <= $slaveCount; $i++) {
-            $slaves[] = $this->slaveParams($i) + ['weight' => 1];
+            $slaves[] = $this->slaveParams($i) + ['weight' => rand(1, 20)];
         }
 
         $this->connections[$connectionName] = [
@@ -124,10 +123,7 @@ trait FeatureContext
     public function requestsAreForcedOnMasterFor($connectionName)
     {
         $connection = $this->getWrappedConnection($connectionName);
-        if ($connection instanceof Ez\DbLinker\Driver\Connection\RetryConnection) {
-            $connection = $connection->wrappedConnection();
-        }
-        $connection->connectToMaster(true);
+        $connection->forceMaster(true);
     }
 
     /**
@@ -135,7 +131,7 @@ trait FeatureContext
      */
     public function iForceRequestsOnSlaveFor($connectionName)
     {
-        $this->getWrappedConnection($connectionName)->connectToSlave();
+        $this->getWrappedConnection($connectionName)->forceMaster(false);
     }
 
     /**
@@ -212,7 +208,9 @@ trait FeatureContext
      */
     public function isOnSlave($connectionName)
     {
-        assert(!$this->getWrappedConnection($connectionName)->isConnectedToMaster());
+        /** @var \Doctrine\DBAL\Connection $cnx */
+        $cnx = $this->getWrappedConnection($connectionName)->getLastConnection();
+        assert($cnx->getParams()['user'] === 'slave_user');
     }
 
     /**
@@ -220,7 +218,9 @@ trait FeatureContext
      */
     public function isOnMaster($connectionName)
     {
-        assert($this->getWrappedConnection($connectionName)->isConnectedToMaster());
+        /** @var \Doctrine\DBAL\Connection $cnx */
+        $cnx = $this->getWrappedConnection($connectionName)->getLastConnection();
+        assert($cnx->getParams()['user'] === 'master_user');
     }
 
     /**
@@ -282,16 +282,6 @@ trait FeatureContext
             'last-result' => null,
             'last-error' => null,
         ];
-    }
-
-    /**
-     * @Then I can get the database name on :connectionName
-     */
-    public function iCanGetTheDatabaseNameOn($connectionName)
-    {
-        $response = $this->getConnection($connectionName)->getDatabase();
-        $expectedResponse = $this->defaultDatabaseName();
-        assert($response === $expectedResponse, "'$response' matches '$expectedResponse'");
     }
 
     /**
@@ -560,6 +550,13 @@ SQL;
         assert($n == $connections, "There is $connections active connection(s) on the test server");
     }
 
+    /**
+     * @Then close :arg1
+     */
+    public function close($arg1)
+    {
+        $this->getConnection($arg1)->close();
+    }
 
     abstract protected function retryStrategy($n);
 }
