@@ -11,12 +11,40 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
 {
     use ConnectionWrapperTrait;
 
+    /**
+     * configuration
+     *
+     * @var array
+     */
     private $master;
+
+    /**
+     * configuration
+     *
+     * @var array
+     */
     private $slaves;
+
+
     private $currentConnectionParams;
+
+    /**
+     * Index of current connected slave
+     *
+     * @var int
+     */
     private $currentSlave;
+
+    /**
+     * @var \Ez\DbLinker\Cache
+     */
     private $cache;
-    private $forceMaster;
+
+    /**
+     * @var bool
+     */
+    private $forceMaster = false;
+
     private $maxSlaveDelay = 30;
     private $slaveStatusCacheTtl = 10;
 
@@ -26,17 +54,16 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
         $this->checkSlaves($slaves);
         $this->slaves = $slaves;
         $this->cache = $cache;
-        $this->forceMaster = false;
     }
 
     public function disableCache() {
-        return $this->cache->disableCache();
+        $this->cache->disableCache();
     }
 
     private function checkSlaves(array $slaves)
     {
         foreach ($slaves as $slave) {
-            if ((int)$slave['weight'] < 0) {
+            if ((int) $slave['weight'] < 0) {
                 throw new Exception('Slave weight must be >= 0');
             }
         }
@@ -61,13 +88,14 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
         if ($this->currentConnectionParams !== null // if connection exists
             && (
                 $this->currentConnectionParams !== $this->master // and is not a master
-                || count($this->slaves) === 0 // or there is no slave
+                || \count($this->slaves) === 0 // or there is no slave
                 || ($this->currentSlave !== null && $this->currentConnectionParams === $this->slaves[$this->currentSlave]) // or is current slave
                 )
             ) {
-            return;
+            return; // already connected to a slave
         }
-        $this->close();
+
+        $this->close(); // should not close her but in destruct !!!
         $this->currentConnectionParams = null;
         $this->currentSlave = null;
         $this->wrappedConnection = null;
@@ -107,28 +135,31 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
     private function chooseASlave()
     {
         $totalSlavesWeight = $this->totalSlavesWeight();
-        if ($totalSlavesWeight < 1) {
+        if (!$totalSlavesWeight) {
             return null;
         }
+
         $weightTarget = mt_rand(1, $totalSlavesWeight);
         foreach ($this->slaves as $n => $slave) {
             if ($slave['weight'] <= 0) {
                 continue;
             }
+
             $weightTarget -= $slave['weight'];
             if ($weightTarget <= 0) {
                 return $n;
             }
         }
+
+        return null;
     }
 
-    private function totalSlavesWeight()
+    private function totalSlavesWeight(): int
     {
-        $weight = 0;
-        foreach ($this->slaves as $slave) {
-            $weight += $slave['weight'];
-        }
-        return $weight;
+        return $this->slaves ? array_reduce($this->slaves, function($carry, $slave) {
+            $carry += $slave['weight'];
+            return $carry;
+        }) : 0;
     }
 
     public function disableCurrentSlave()

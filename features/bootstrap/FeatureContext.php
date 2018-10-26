@@ -71,18 +71,17 @@ trait FeatureContext
      */
     public function aMasterSlavesConnectionWithSlaves(string $connectionName, int $slaveCount)
     {
-        $master = $this->masterParams();
-        $params = [
-            'master' => $master,
-            'slaves' => [],
-            'driverClass' => $this->masterSlaveDriverClass(),
-        ];
+        $slaves = [];
         for ($i = 1; $i <= $slaveCount; $i++) {
-            $params['slaves'][] = $this->slaveParams($i) + ['weight' => 1];
+            $slaves[] = $this->slaveParams($i) + ['weight' => 1];
         }
 
         $this->connections[$connectionName] = [
-            'params' => $params,
+            'params' => [
+                'master' => $this->masterParams(),
+                'slaves' => $slaves,
+                'driverClass' => $this->masterSlaveDriverClass(),
+            ],
             'instance' => null,
             'last-result' => null,
             'last-error' => null,
@@ -95,29 +94,23 @@ trait FeatureContext
      * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retry with username :username
      * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retries with username :username
      */
-    public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetriesWithusername($connectionName, $slaveCount, $n, $username = null)
+    public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetriesWithusername(string $connectionName, int $slaveCount, $n, $username = null)
     {
-        $master = $this->masterParams($username);
-
-        $slaveCount = (int) $slaveCount;
         $slaves = [];
-        $master['weight'] = 1;
-        while ($slaveCount--) {
-            $slaves[] = $master;
-            $master['weight']++;
+        for ($i = 1; $i <= $slaveCount; $i++) {
+            $slaves[] = $this->slaveParams($i) + ['weight' => 1];
         }
 
-        $params = [
-            'driverClass' => $this->retryDriverClass(),
-            'connectionParams' => [
-                'master' => $master,
-                'slaves' => $slaves,
-                'driverClass' => $this->masterSlaveDriverClass(),
-            ],
-            'retryStrategy' => $this->retryStrategy($n),
-        ];
         $this->connections[$connectionName] = [
-            'params' => $params,
+            'params' => [
+                'driverClass' => $this->retryDriverClass(),
+                'connectionParams' => [
+                    'master' => $this->masterParams($username),
+                    'slaves' => $slaves,
+                    'driverClass' => $this->masterSlaveDriverClass(),
+                ],
+                'retryStrategy' => $this->retryStrategy($n),
+            ],
             'instance' => null,
             'last-result' => null,
             'last-error' => null,

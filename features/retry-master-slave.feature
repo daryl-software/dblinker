@@ -70,6 +70,9 @@ Feature: Retry Master/Slaves
          Then I query "SELECT 5" on "connce"
          Then I query "SELECT 6" on "connce"
          Then I query "SELECT 7" on "connce"
+         Then I query "SELECT 8" on "connce"
+         Then I query "SELECT 9" on "connce"
+         Then I query "SELECT 10" on "connce"
           And "connce" retry limit should be 1
           And "connce" should have 2 slaves
           And there is 2 connections established on "connce"

@@ -59,6 +59,6 @@ class Cache
     }
 
     public function disableCache() {
-        return $this->setCache(false);
+        $this->setCache(false);
     }
 }
