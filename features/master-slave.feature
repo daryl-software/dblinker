@@ -3,7 +3,6 @@ Feature: Master / Slaves
 
     Background:
       Given a master-slaves connection "conn" with 3 slaves
-      And slave user has only SELECT permission on "conn"
 
     Scenario: Insert a row on master
     When I query "INSERT INTO users (name, email) VALUES ('test', ?)" with param "bob@test.com" on "conn"

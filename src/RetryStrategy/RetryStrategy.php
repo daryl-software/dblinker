@@ -63,20 +63,21 @@ trait RetryStrategy
         return true;
     }
 
-    private function changeServer(stdClass $strategy, RetryConnection $connection)
+    private function changeServer(stdClass $strategy, RetryConnection $connection): bool
     {
         if (!$strategy->changeServer) {
             return true;
         }
+        /** @var MasterSlavesConnection $wrappedConnection */
         $wrappedConnection = $connection->wrappedConnection();
-        if ($wrappedConnection instanceof MasterSlavesConnection && !$wrappedConnection->isConnectedToMaster()) {
+        if ($wrappedConnection instanceof MasterSlavesConnection && $wrappedConnection->lastConnectionType() === 'slave') {
             $wrappedConnection->disableCurrentSlave();
             return true;
         }
         return false;
     }
 
-    private function reconnect(stdClass $strategy, RetryConnection $connection)
+    private function reconnect(stdClass $strategy, RetryConnection $connection): void
     {
         if ($strategy->reconnect) {
             $connection->close();

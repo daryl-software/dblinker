@@ -23,7 +23,7 @@ trait MasterSlavesDriver
      *
      * @return \Doctrine\DBAL\Driver\Connection The database connection.
      */
-    public function connect(Array $params, $username = null, $password = null, Array $driverOptions = []) {
+    public function connect(array $params, $username = null, $password = null, array $driverOptions = []) {
         $cacheDriver = array_key_exists("config_cache", $driverOptions) ? $driverOptions["config_cache"] : null;
 
         $configParams = array_intersect_key($params, array_flip(["master", "slaves"]));

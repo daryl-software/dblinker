@@ -1,7 +1,6 @@
 <?php
 
 use Behat\Behat\Tester\Exception\PendingException;
-use Doctrine\DBAL\Exception\DriverException;
 use Ez\DbLinker\Driver\Connection\RetryConnection;
 
 trait PostgreSQLContext
@@ -24,7 +23,7 @@ trait PostgreSQLContext
         return $this->params($params);
     }
 
-    private function slaveParams(int $number, $username = null, $password = '') {
+    private function slaveParams(int $number, string $username = null, string $password = '') {
         $params = [
             'host'          => getenv('DBLINKER_POSTGRESQL_SLAVE_'.$number.'_1_PORT_5432_TCP_ADDR'),
             'user'          => getenv('DBLINKER_POSTGRESQL_SLAVE_'.$number.'_1_ENV_POSTGRES_USER'),

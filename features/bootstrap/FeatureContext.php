@@ -5,7 +5,11 @@ use Ez\DbLinker\Driver\Connection\RetryConnection;
 
 trait FeatureContext
 {
+    /**
+     * @var array
+     */
     private $connections = [];
+
     private $statement;
 
     /**
@@ -72,18 +76,6 @@ trait FeatureContext
         ];
     }
 
-
-    /**
-     * @Given slave user has only SELECT permission on :connectionName
-     */
-    public function slaveUserHasOnlySelectPermission(string $connectionName)
-    {
-        $db = $this->getConnection($connectionName)->getWrappedConnection();
-        foreach(array_keys($db->slaves()) as $index) {
-
-        }
-    }
-
     /**
      * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retry
      * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retries
@@ -94,7 +86,7 @@ trait FeatureContext
     {
         $slaves = [];
         for ($i = 1; $i <= $slaveCount; $i++) {
-            $slaves[] = $this->slaveParams($i) + ['weight' => rand(1, 20)];
+            $slaves[] = $this->slaveParams($i, $username) + ['weight' => rand(1, 20)];
         }
 
         $this->connections[$connectionName] = [
@@ -117,24 +109,25 @@ trait FeatureContext
      * @Given requests are forced on master for :connectionName
      * @When I force requests on master for :connectionName
      */
-    public function requestsAreForcedOnMasterFor($connectionName)
+    public function requestsAreForcedOnMasterFor($connectionName): void
     {
-        $connection = $this->getWrappedConnection($connectionName);
-        $connection->forceMaster(true);
+        $connection = $this->wrpdcnx($connectionName);
+        $xnz = $connection->wrappedConnection();
+        $xnz->forceMaster(true);
     }
 
     /**
      * @When I force requests on slave for :connectionName
      */
-    public function iForceRequestsOnSlaveFor($connectionName)
+    public function iForceRequestsOnSlaveFor($connectionName): void
     {
-        $this->getWrappedConnection($connectionName)->forceMaster(false);
+        $this->wrpdcnx($connectionName)->forceMaster(false);
     }
 
     /**
      * @When I query :sql with param :param on :connectionName
      */
-    public function iQueryWithParamOn(string $sql, string $param, string $connectionName)
+    public function iQueryWithParamOn(string $sql, string $param, string $connectionName): void
     {
         $this->connections[$connectionName]['last-result'] = null;
         $this->connections[$connectionName]['last-error']  = null;
@@ -142,7 +135,6 @@ trait FeatureContext
             $connection = $this->getConnection($connectionName);
             $this->connections[$connectionName]['last-result'] = $connection->executeQuery($sql, [$param]);
         } catch (\Exception $e) {
-            print_r($e->getMessage());
             $this->connections[$connectionName]['last-error'] = $e;
         }
     }
@@ -150,7 +142,7 @@ trait FeatureContext
     /**
      * @When I query :sql on :connectionName
      */
-    public function iQueryOn($connectionName, $sql)
+    public function iQueryOn(string $connectionName, string $sql)
     {
         $this->connections[$connectionName]['last-result'] = null;
         $this->connections[$connectionName]['last-error']  = null;
@@ -204,28 +196,24 @@ trait FeatureContext
     /**
      * @Then :connectionName is on slave
      */
-    public function isOnSlave($connectionName)
+    public function isOnSlave($connectionName): bool
     {
-        /** @var \Doctrine\DBAL\Connection $cnx */
-        $cnx = $this->getWrappedConnection($connectionName)->getLastConnection();
-        assert($cnx->getParams()['user'] === 'slave_user');
+        return $this->wrpdcnx($connectionName)->getLastConnection() instanceof \Ez\DbLinker\Slave;
     }
 
     /**
      * @Then :connectionName is on master
      */
-    public function isOnMaster($connectionName)
+    public function isOnMaster($connectionName): bool
     {
-        /** @var \Doctrine\DBAL\Connection $cnx */
-        $cnx = $this->getWrappedConnection($connectionName)->getLastConnection();
-        assert($cnx->getParams()['user'] === 'master_user');
+        return $this->wrpdcnx($connectionName)->getLastConnection() instanceof \Ez\DbLinker\Master;
     }
 
     /**
      * @When I start a transaction on :connectionName
      * @Given a transaction is started on :connectionName
      */
-    public function aTransactionIsStartedOn($connectionName)
+    public function aTransactionIsStartedOn($connectionName): void
     {
         $this->getConnection($connectionName)->beginTransaction();
     }
@@ -316,7 +304,7 @@ trait FeatureContext
     /**
      * @Then :connectionName retry limit should be :n
      */
-    public function retryLimitShouldBe($connectionName, $n)
+    public function retryLimitShouldBe($connectionName, $n): void
     {
         $retryLimit = $this->connections[$connectionName]['params']['retryStrategy']->retryLimit();
         assert($retryLimit === (int) $n, "Retry limit is $retryLimit, $n expected.");
@@ -376,6 +364,7 @@ SQL;
      */
     public function theLastQueryFailedOn($connectionName)
     {
+
         assert($this->connections[$connectionName]['last-result'] === null);
     }
 
@@ -385,11 +374,13 @@ SQL;
      */
     public function shouldHaveSlave($connectionName, $n)
     {
-        $connection = $this->getWrappedConnection($connectionName);
+        $connection = $this->wrpdcnx($connectionName);
         if ($connection instanceof \Ez\DbLinker\Driver\Connection\RetryConnection) {
             $connection = $connection->wrappedConnection();
         }
-        $slaveCount = count($connection->slaves());
+        $slaveCount = count(array_filter($connection->slaves(), function ($slave) {
+            return $slave['weight'] > 0;
+        }));
         assert($slaveCount === (int)$n, "Slaves count is $slaveCount, $n expected.");
     }
 
@@ -474,7 +465,12 @@ SQL;
     abstract protected function errorToCode($errorName);
     abstract protected function errorCode(Exception $exception);
 
-    private function getWrappedConnection($connectionName)
+    /**
+     * @param $connectionName
+     * @return \Ez\DbLinker\Driver\Connection\MasterSlavesConnection
+     * @throws \Doctrine\DBAL\DBALException
+     */
+    private function wrpdcnx($connectionName)
     {
         return $this->getConnection($connectionName)->getWrappedConnection();
     }
@@ -520,7 +516,7 @@ SQL;
      */
     public function theCacheIsDisable($connectionName)
     {
-        $connection = $this->getWrappedConnection($connectionName);
+        $connection = $this->wrpdcnx($connectionName);
         $connection->disableCache();
     }
 
@@ -529,13 +525,13 @@ SQL;
      */
     public function slaveReplicationIsStopped($connectionName)
     {
-        $connection = $this->getWrappedConnection($connectionName);
+        $connection = $this->wrpdcnx($connectionName);
         if ($connection instanceof Ez\DbLinker\Driver\Connection\RetryConnection) {
             $connection = $connection->wrappedConnection();
         }
-        $connection->connectToSlave();
-        $connection->setSlaveStatus(false, 120);
-        $connection->isSlaveOk();
+        /** @var \Ez\DbLinker\Driver\Connection\MasterSlavesConnection $connection */
+        $connection->setSlaveStatus(0, false, 120);
+        $connection->isSlaveOk(0);
     }
 
     /**

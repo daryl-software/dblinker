@@ -7,13 +7,13 @@ use Doctrine\DBAL\Driver\PDOConnection;
 use Doctrine\DBAL\DriverManager;
 use Ez\DbLinker\RetryStrategy;
 
-class RetryConnection implements Connection, ConnectionWrapper
+class RetryConnection implements Connection
 {
-    use ConnectionWrapperTrait;
-
     private $wrappedConnectionParams;
     private $retryStrategy;
     private $transactionLevel = 0;
+    private $wrappedConnection;
+    private $wrappedDriver;
 
     use CallAndRetry;
 
@@ -160,4 +160,25 @@ class RetryConnection implements Connection, ConnectionWrapper
         $this->wrappedConnection = $connection->getWrappedConnection();
         $this->wrappedDriver = $connection->getDriver();
     }
+
+    /**
+     * @inherit
+     * @return \Doctrine\DBAL\Driver\PDOConnection
+     */
+    public function wrappedConnection()
+    {
+        if ($this->wrappedConnection === null) {
+            $this->wrap();
+        }
+        return $this->wrappedConnection;
+    }
+
+    public function wrappedDriver()
+    {
+        if ($this->wrappedDriver === null) {
+            $this->wrap();
+        }
+        return $this->wrappedDriver;
+    }
+
 }
