@@ -6,12 +6,12 @@ Feature: Master / Slaves
       And slave user has only SELECT permission on "conn"
 
     Scenario: Insert a row on master
-    When I query "INSERT INTO user (name, email) VALUES ('test', ?)" with param "bob@test.com" on "conn"
+    When I query "INSERT INTO users (name, email) VALUES ('test', ?)" with param "bob@test.com" on "conn"
     Then the last query succeeded on "conn"
     And "conn" is on master
 
     Scenario: Read prepared statement on slave
-        When I query "SELECT ?" with param 1 on "conn"
+        When I query "SELECT * FROM users WHERE email = ?" with param 'max@yopmail.com' on "conn"
         Then the last query succeeded on "conn"
          And "conn" is on slave
 
