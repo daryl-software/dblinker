@@ -30,6 +30,8 @@ behat:
 
 mysql_master:
     image: mariadb:10.2
+    volumes:
+        - ./config/docker/db/init-mysql-master.sql:/docker-entrypoint-initdb.d/init.sql:ro
     environment:
         MYSQL_DATABASE: db
         MYSQL_USER: master_user
@@ -38,6 +40,8 @@ mysql_master:
 
 mysql_slave_1:
     image: mariadb:10.2
+    volumes:
+        - ./config/docker/db/init-mysql-slave.sql:/docker-entrypoint-initdb.d/init.sql:ro
     environment:
         MYSQL_DATABASE: db
         MYSQL_USER: slave_user
@@ -46,6 +50,8 @@ mysql_slave_1:
 
 mysql_slave_2:
     image: mariadb:10.2
+    volumes:
+        - ./config/docker/db/init-mysql-slave.sql:/docker-entrypoint-initdb.d/init.sql:ro
     environment:
         MYSQL_DATABASE: db
         MYSQL_USER: slave_user
@@ -54,6 +60,8 @@ mysql_slave_2:
 
 mysql_slave_3:
     image: mariadb:10.2
+    volumes:
+        - ./config/docker/db/init-mysql-slave.sql:/docker-entrypoint-initdb.d/init.sql:ro
     environment:
         MYSQL_DATABASE: db
         MYSQL_USER: slave_user

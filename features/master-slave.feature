@@ -2,7 +2,13 @@
 Feature: Master / Slaves
 
     Background:
-        Given a master-slaves connection "conn" with 3 slaves
+      Given a master-slaves connection "conn" with 3 slaves
+      And slave user has only SELECT permission on "conn"
+
+    Scenario: Insert a row on master
+    When I query "INSERT INTO user (name, email) VALUES ('test', ?)" with param "bob@test.com" on "conn"
+    Then the last query succeeded on "conn"
+    And "conn" is on master
 
     Scenario: Read prepared statement on slave
         When I query "SELECT ?" with param 1 on "conn"
@@ -38,6 +44,12 @@ Feature: Master / Slaves
           And "conn" is on master
 
     Scenario: Disable cache
+        Given the cache is disable on "conn"
+         When I query "SELECT 1" on "conn"
+         Then the last query succeeded on "conn"
+          And "conn" is on slave
+
+    Scenario: Test executeUpdate
         Given the cache is disable on "conn"
          When I query "SELECT 1" on "conn"
          Then the last query succeeded on "conn"

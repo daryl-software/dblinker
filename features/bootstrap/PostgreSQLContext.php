@@ -74,10 +74,6 @@ trait PostgreSQLContext
                 'last-error' => null,
             ]
         ];
-        $connection = $this->rootConnection();
-        $connection->close();
-        $connection = null;
-        gc_collect_cycles();
     }
 
     private function retryStrategy($n)

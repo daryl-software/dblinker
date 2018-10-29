@@ -16,34 +16,19 @@ trait FeatureContext
     /**
      * @BeforeScenario
      */
-    public function clearDatabase()
-    {
-        $dbname = $this->masterParams()['dbname'];
-        $connection = $this->rootConnection();
-        $connection->exec("DROP DATABASE IF EXISTS $dbname");
-        $connection->exec("CREATE DATABASE $dbname");
-        $connection->close();
-        $connection = null;
-        gc_collect_cycles();
-    }
-
-    /**
-     * @BeforeScenario
-     */
     public function assertNoActiveConnection()
     {
         $n = $this->activeConnectionsCount();
         assert($n === 0, "There is $n active connection(s) on the test server");
     }
 
-    abstract protected function activeConnectionsCount();
-
     private function rootConnection()
     {
         $params = $this->masterParams('root');
-        unset($params['dbname']);
         return DriverManager::getConnection($params);
     }
+
+    abstract protected function activeConnectionsCount();
 
     /**
      * @AfterScenario
@@ -85,6 +70,18 @@ trait FeatureContext
             'last-result' => null,
             'last-error' => null,
         ];
+    }
+
+
+    /**
+     * @Given slave user has only SELECT permission on :connectionName
+     */
+    public function slaveUserHasOnlySelectPermission(string $connectionName)
+    {
+        $db = $this->getConnection($connectionName)->getWrappedConnection();
+        foreach(array_keys($db->slaves()) as $index) {
+
+        }
     }
 
     /**
@@ -145,6 +142,7 @@ trait FeatureContext
             $connection = $this->getConnection($connectionName);
             $this->connections[$connectionName]['last-result'] = $connection->executeQuery($sql, [$param]);
         } catch (\Exception $e) {
+            print_r($e->getMessage());
             $this->connections[$connectionName]['last-error'] = $e;
         }
     }

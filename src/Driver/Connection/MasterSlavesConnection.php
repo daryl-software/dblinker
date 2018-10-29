@@ -43,11 +43,10 @@ class MasterSlavesConnection implements Connection
 
     /**
      * Actual connections established to master & slaves
-     * key: master or slave_1/2/3...
      *
-     * @var Connection[]
+     * @var array
      */
-    private $connections = ['master' => null];
+    private $connections = ['master' => null, 'slaves' => []];
 
     /**
      * @var Connection
@@ -88,19 +87,33 @@ class MasterSlavesConnection implements Connection
         return $this->connections['master'];
     }
 
-    private function slaveConnection(): Connection
+    private function slaveConnection(int $index = null): Connection
     {
         if (empty($this->slaves)) {
             return $this->masterConnection();
         }
 
         $this->forceMaster = false;
+        $cnx = null;
 
-        if (!isset($this->connections['slave'])) {
-            $this->connections['slave'] = DriverManager::getConnection($this->randomSlave());
+        if ($index !== null && isset($this->connections['slaves'][$index])) {
+            // we want a specific slave and we have it loaded
+            $cnx = $this->connections['slaves'][$index];
+        } else if ($index == null && !empty($this->connections['slaves'])) {
+            // we dont want a particular slave, but we have one loaded
+            $cnx = current($this->connections['slaves']);
+        } else {
+            // we dont have any slave loaded
+            $slaveIndex = $index ?? $this->randomSlave();
+            if (!isset($this->connections['slaves'][$slaveIndex])) {
+                $cnx = $this->connections['slaves'][$slaveIndex] = DriverManager::getConnection($this->slaves[$slaveIndex]);
+            } else {
+                $cnx = $this->connections['slaves'][$slaveIndex];
+            }
         }
-        $this->lastConnection = $this->connections['slave'];
-        return $this->connections['slave'];
+
+        $this->lastConnection = $cnx;
+        return $cnx;
     }
 
     public function getLastConnection(): ?Connection
@@ -111,16 +124,15 @@ class MasterSlavesConnection implements Connection
     /**
      * Get random slave and return configuration array
      *
-     * @return array
+     * @return int
      */
-    private function randomSlave(): array
+    private function randomSlave(): int
     {
         $weights = [];
         foreach ($this->slaves as $slaveIndex => $slave) {
             $weights = array_merge($weights, array_fill(0, $slave['weight'], $slaveIndex));
         }
-        $idx = $weights[array_rand($weights)];
-        return $this->slaves[$idx];
+        return $weights[array_rand($weights)];
     }
 
     public function disableCurrentSlave()
@@ -149,7 +161,7 @@ class MasterSlavesConnection implements Connection
     {
         $cnx = null;
         if ($this->forceMaster
-            || preg_match('/$\b(DELETE|UPDATE|INSERT)\b/i', $prepareString)) {
+            || preg_match('/\b(DELETE|UPDATE|INSERT)\b/i', $prepareString)) {
             $cnx = $this->masterConnection();
         } else {
             $cnx = $this->slaveConnection();
