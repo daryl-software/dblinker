@@ -9,6 +9,11 @@ trait CallAndRetry
 {
     /**
      * call $callable and retry if necessary
+     * @param callable $callable
+     * @param RetryStrategy $strategy
+     * @param RetryConnection $connection
+     * @return
+     * @throws Exception
      */
     private function callAndRetry(callable $callable, RetryStrategy $strategy, RetryConnection $connection)
     {

@@ -22,7 +22,7 @@ Feature: Retry Master/Slaves
           And requests are forced on master for "test3"
           And database has Gone Away on "test3"
          When I query "SELECT 1" on "test3"
-         Then the last query failed on "test3"
+         Then the last query succeeded on "test3"
           And the last error should be "GONE_AWAY" on "test3"
           And "test3" retry limit should be 0
           And "test3" should have 2 slaves

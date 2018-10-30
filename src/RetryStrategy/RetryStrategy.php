@@ -17,13 +17,18 @@ trait RetryStrategy
         $this->retryLimit = $retryLimit;
     }
 
-    public function shouldRetry(Exception $exception, RetryConnection $connection) {
+    /**
+     * @param Exception $exception
+     * @param RetryConnection $connection
+     * @return bool
+     */
+    public function shouldRetry(Exception $exception, RetryConnection $connection): bool
+    {
         if (!$this->canRetry($connection)) {
             return false;
         }
         $strategy = $this->errorCodeStrategy($this->errorCode($exception));
-        $res = $this->applyStrategy($strategy, $connection);
-        return $res;
+        return $this->applyStrategy($strategy, $connection);
     }
 
     public function retryLimit()

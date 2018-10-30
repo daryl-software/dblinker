@@ -34,7 +34,6 @@ class MysqlRetryStrategy implements RetryStrategyInterface
 
     private function errorCode(Exception $exception)
     {
-        var_dump(get_class($exception));
         if ($exception instanceof DDriverException || $exception instanceof EDriverException) {
             return $exception->getErrorCode();
         }

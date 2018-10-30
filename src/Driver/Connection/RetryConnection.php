@@ -42,6 +42,7 @@ class RetryConnection implements Connection
      * Executes an SQL statement, returning a result set as a Statement object.
      *
      * @return \Doctrine\DBAL\Driver\Statement
+     * @throws \Exception
      */
     public function query() {
         return $this->callWrappedConnectionAndRetry(__FUNCTION__, func_get_args());
@@ -143,10 +144,16 @@ class RetryConnection implements Connection
         return $this->transactionLevel;
     }
 
+    /**
+     * @param $method
+     * @param array $arguments
+     * @return mixed
+     * @throws \Exception
+     */
     private function callWrappedConnectionAndRetry($method, array $arguments)
     {
         return $this->callAndRetry(function () use ($method, $arguments) {
-            return call_user_func_array([$this->wrappedConnection(), $method], $arguments);
+            return \call_user_func_array([$this->wrappedConnection(), $method], $arguments);
         }, $this->retryStrategy, $this);
     }
 

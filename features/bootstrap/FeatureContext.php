@@ -222,13 +222,12 @@ trait FeatureContext
      */
     public function aRetryConnectionLimitedToRetryWithusername($connectionName, $n, $username = null)
     {
-        $params = [
-            'driverClass' => $this->retryDriverClass(),
-            'connectionParams' => $this->masterParams($username),
-            'retryStrategy' => $this->retryStrategy($n),
-        ];
         $this->connections[$connectionName] = [
-            'params' => $params,
+            'params' => [
+                'driverClass' => $this->retryDriverClass(),
+                'connectionParams' => $this->masterParams($username),
+                'retryStrategy' => $this->retryStrategy($n),
+            ],
             'instance' => null,
             'last-result' => null,
             'last-error' => null,
