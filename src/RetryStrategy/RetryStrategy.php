@@ -3,6 +3,7 @@
 namespace Ez\DbLinker\RetryStrategy;
 
 use Exception;
+use Ez\DbLinker\Slave;
 use stdClass;
 use Ez\DbLinker\Driver\Connection\MasterSlavesConnection;
 use Ez\DbLinker\Driver\Connection\RetryConnection;
@@ -70,8 +71,8 @@ trait RetryStrategy
         }
         /** @var MasterSlavesConnection $wrappedConnection */
         $wrappedConnection = $connection->wrappedConnection();
-        if ($wrappedConnection instanceof MasterSlavesConnection && $wrappedConnection->lastConnectionType() === 'slave') {
-            $wrappedConnection->disableCurrentSlave();
+        if ($wrappedConnection instanceof MasterSlavesConnection && $wrappedConnection->getLastConnection() instanceOf Slave) {
+            $wrappedConnection->getLastConnection()->disable();
             return true;
         }
         return false;

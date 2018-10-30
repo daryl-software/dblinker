@@ -2,7 +2,6 @@
 
 namespace Ez\DbLinker\Driver\Connection;
 
-use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Driver\Connection;
 use Ez\DbLinker\ExtendedServer;
 use Ez\DbLinker\Master;
@@ -49,11 +48,6 @@ class MasterSlavesConnection implements Connection
      */
     private $lastConnection;
 
-    /**
-     * @var int
-     */
-    private $lastSlaveIndex;
-
     public function __construct(array $master, array $slaves, $cache = null)
     {
         $this->master = new Master($master);
@@ -65,6 +59,10 @@ class MasterSlavesConnection implements Connection
         $this->cache->disableCache();
     }
 
+    /**
+     * @param array $slaves
+     * @return Slave[]
+     */
     private function filteredSlaves(array $slaves)
     {
         // keep slave with weight > 0
@@ -235,7 +233,7 @@ class MasterSlavesConnection implements Connection
      */
     public function errorCode()
     {
-        return $this->lastConnection->errorCode();
+        return $this->lastConnection->connection()->errorCode();
     }
 
     /**
@@ -245,11 +243,7 @@ class MasterSlavesConnection implements Connection
      */
     public function errorInfo()
     {
-        return $this->lastConnection->errorInfo();
-    }
-
-    public function close()
-    {
+        return $this->lastConnection->connection()->errorInfo();
     }
 
     private function hasCache() {
@@ -265,60 +259,5 @@ class MasterSlavesConnection implements Connection
             $this->cache->setCacheItem($this->getCacheKey($this->slaves[$slaveIndex]), ['running' => $running, 'delay' => $delay], $this->slaveStatusCacheTtl);
         }
         return ['running' => $running, 'delay' => $delay];
-    }
-
-    private function getSlaveStatus(int $slaveIndex) {
-        if (stripos($this->wrappedDriver->getName(), 'pgsql') !== false) {
-            try {
-                $sss = $this->wrappedConnection()->query('SELECT now() - pg_last_xact_replay_timestamp() AS replication_lag')->fetch();
-                return $this->setSlaveStatus(true, $sss['replication_lag']);
-            } catch (\Exception $e) {
-                return $this->setSlaveStatus(false, null);
-            }
-        } else {
-            try {
-                $sss = $this->wrappedConnection()->query('SHOW SLAVE STATUS')->fetch();
-                if ($sss['Slave_IO_Running'] === 'No' || $sss['Slave_SQL_Running'] === 'No') {
-                    // slave is STOPPED
-                    return $this->setSlaveStatus(false, null);
-                } else {
-                    return $this->setSlaveStatus(true, $sss['Seconds_Behind_Master']);
-                }
-            } catch (\Exception $e) {
-                if (stripos($e->getMessage(), 'Access denied') !== false) {
-                    return $this->setSlaveStatus(true, 0);
-                }
-                return $this->setSlaveStatus(false, null);
-            }
-        }
-    }
-
-    public function isSlaveOk(int $slaveIndex, bool $cachedValue, int $maxdelay = null) {
-        $maxdelay = $maxdelay ?? $this->maxSlaveDelay;
-        if ($cachedValue) {
-            assert($this->hasCache());
-            $status = $this->cache->getCacheItem($this->getCacheKey($this->slaves[$slaveIndex]));
-        }
-        if ($this->hasCache()) {
-            if ($status === null) {
-                $status = $this->getSlaveStatus($slaveIndex);
-            }
-        } else {
-            $status = $this->getSlaveStatus($slaveIndex);
-        }
-        if (!$status['running'] || $status['delay'] >= $maxdelay) {
-            $this->disableCurrentSlave();
-            return false;
-        }
-        return true;
-    }
-
-    public function lastConnectionType(): ?string {
-        return $this->lastConnectionType;
-    }
-
-    public function __destruct()
-    {
-        // called on connection closes
     }
 }

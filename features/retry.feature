@@ -80,12 +80,8 @@ Feature: Retry
           And the last error should be "CON_COUNT" on "conn2"
           And "conn2" retry limit should be 0
 
-    Scenario: Get database
-        Then I can get the database name on "conn"
-
-
     Scenario: No such table
-        Given table "not_here_yet" can be created automatically on "conn"
+        Given table "not_here_iCanGetTheDatabaseNameOnyet" can be created automatically on "conn"
          When I prepare a statement "SELECT * FROM not_here_yet" on "conn"
           And I execute this statement
          Then the last statement succeeded

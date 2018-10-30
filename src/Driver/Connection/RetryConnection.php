@@ -131,9 +131,7 @@ class RetryConnection implements Connection
 
     public function close()
     {
-        if ($this->wrappedConnection instanceof MasterSlavesConnection) {
-            $this->wrappedConnection->close();
-        } elseif ($this->wrappedConnection instanceof PDOConnection) {
+        if ($this->wrappedConnection instanceof PDOConnection) {
         } elseif (method_exists($this->wrappedConnection, "getWrappedResourceHandle")) {
             $this->wrappedConnection->getWrappedResourceHandle()->close();
         }

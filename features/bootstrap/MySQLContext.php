@@ -148,10 +148,7 @@ class MysqlRetryStrategy extends Ez\DbLinker\RetryStrategy\MysqlRetryStrategy
     private $lastError = null;
     private $handlers = [];
 
-    public function shouldRetry(
-        Exception $exception,
-        RetryConnection $connection
-    ) {
+    public function shouldRetry(Exception $exception, RetryConnection $connection) {
         $this->lastError = $exception;
         return array_reduce($this->handlers, function($retry, Closure $handler) use ($exception, $connection) {
             return $retry || $handler($exception, $connection);

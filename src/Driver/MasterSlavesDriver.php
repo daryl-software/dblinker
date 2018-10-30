@@ -8,8 +8,6 @@ use Ez\DbLinker\Cache;
 
 trait MasterSlavesDriver
 {
-    use WrapperDriver;
-
     private $cache;
     private $cacheDefaultTtl = 60;
 

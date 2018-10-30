@@ -3,21 +3,23 @@
 namespace Ez\DbLinker;
 
 
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
-use mysql_xdevapi\Exception;
 
 abstract class ExtendedServer
 {
-    private $host;
-    private $user;
-    private $password;
-    private $dbname;
-    private $drivername;
-    private $extraParams = [];
-    private $driver;
-    private $driverOptions;
+    protected $host;
+    protected $user;
+    protected $password;
+    protected $dbname;
+    protected $extraParams = [];
+    protected $driver;
+    protected $driverOptions;
 
-    protected static $connection;
+    /**
+     * @var Connection
+     */
+    protected $connection;
 
     public function __construct(array $params)
     {
@@ -50,14 +52,35 @@ abstract class ExtendedServer
         ];
     }
 
-    public function isConnected() :bool {
-        return self::$connection !== null;
+    public function isConnected(): bool {
+        return $this->connection !== null;
     }
 
-    public function connection() {
-        if (!self::$connection) {
-            self::$connection = DriverManager::getConnection($this->dbalConfig());
+    public function __toString()
+    {
+        return $this->user . '@' . $this->host . ':' . $this->dbname;
+    }
+
+    public function close() {
+        if ($this->isConnected()) {
+            echo \get_class($this) . ' ' . $this . PHP_EOL;
+            $this->connection->close();
         }
-        return self::$connection;
+    }
+
+    /**
+     * @return \Doctrine\DBAL\Connection
+     * @throws \Doctrine\DBAL\DBALException
+     */
+    public function connection(): Connection {
+        if (!$this->connection) {
+            $this->connection = DriverManager::getConnection($this->dbalConfig());
+        }
+        return $this->connection;
+    }
+
+    public function __destruct()
+    {
+        $this->close();
     }
 }

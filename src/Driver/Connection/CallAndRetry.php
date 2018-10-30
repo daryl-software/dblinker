@@ -16,10 +16,7 @@ trait CallAndRetry
             try {
                 return @$callable();
             } catch (Exception $exception) {
-                if (!$strategy->shouldRetry(
-                    $exception,
-                    $connection
-                )) {
+                if (!$strategy->shouldRetry($exception, $connection)) {
                     // stop trying
                     throw $exception;
                 }

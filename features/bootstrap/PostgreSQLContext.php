@@ -84,7 +84,11 @@ trait PostgreSQLContext
     private function errorCode(Exception $exception)
     {
         if(preg_match("/SQLSTATE\[(?<errorCode>[A-Z0-9]*)\]/", $exception->getMessage(), $matches)) {
-            return $matches["errorCode"];
+            $code = $matches["errorCode"];
+            if ($code === 'HY000') {
+                $code = '08006';
+            }
+            return $code;
         }
     }
 
@@ -112,6 +116,7 @@ trait PostgreSQLContext
             return;
         }
         $errors = [
+            '1045' => '08006',
             "BAD_DB" => "08006",
             "ACCESS_DENIED" => "08006",
             "DBACCESS_DENIED" => "08006",
