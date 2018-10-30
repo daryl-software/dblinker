@@ -64,11 +64,11 @@ trait MySQLContext
      * @Given the server accept :n more connection
      * @Given the server accept :n more connections
      */
-    public function theServerAcceptMoreConnections($n)
+    public function theServerAcceptMoreConnections(int $n)
     {
         $n += $this->activeConnectionsCount();
         $connection = $this->rootConnection();
-        $connection->exec("SET GLOBAL MAX_CONNECTIONS = $n");
+        $connection->exec("SET GLOBAL max_user_connections = $n");
         $connection->close();
         $connection = null;
         gc_collect_cycles();
@@ -88,7 +88,7 @@ trait MySQLContext
             ]
         ];
         $connection = $this->rootConnection();
-        $connection->exec("SET GLOBAL MAX_CONNECTIONS = 50");
+        $connection->exec("SET GLOBAL MAX_USER_CONNECTIONS = 50");
         $connection->close();
         $connection = null;
         gc_collect_cycles();
@@ -134,6 +134,7 @@ trait MySQLContext
             "DBACCESS_DENIED" => 1044,
             "DEADLOCK" => 1213,
             "CON_COUNT" => 1040,
+            "CON_USER_COUNT" => 1203,
             "NO_SUCH_TABLE" => 1146,
         ];
         if (array_key_exists($error, $errors)) {

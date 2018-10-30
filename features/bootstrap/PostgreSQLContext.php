@@ -55,7 +55,7 @@ trait PostgreSQLContext
      * @Given the server accept :n more connection
      * @Given the server accept :n more connections
      */
-    public function theServerAcceptMoreConnections($n)
+    public function theServerAcceptMoreConnections(int $n)
     {
         throw new PendingException;
     }

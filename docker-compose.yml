@@ -31,6 +31,7 @@ behat:
 mysql_master:
     image: mariadb:10.2
     volumes:
+        - ./config/docker/db/my.cnf:/etc/mysql/conf.d/docker.cnf
         - ./config/docker/db/init-mysql-master.sql:/docker-entrypoint-initdb.d/init.sql:ro
     environment:
         MYSQL_DATABASE: db
@@ -41,6 +42,7 @@ mysql_master:
 mysql_slave_1:
     image: mariadb:10.2
     volumes:
+        - ./config/docker/db/my.cnf:/etc/mysql/conf.d/docker.cnf
         - ./config/docker/db/init-mysql-slave.sql:/docker-entrypoint-initdb.d/init.sql:ro
     environment:
         MYSQL_DATABASE: db
@@ -51,6 +53,7 @@ mysql_slave_1:
 mysql_slave_2:
     image: mariadb:10.2
     volumes:
+        - ./config/docker/db/my.cnf:/etc/mysql/conf.d/docker.cnf
         - ./config/docker/db/init-mysql-slave.sql:/docker-entrypoint-initdb.d/init.sql:ro
     environment:
         MYSQL_DATABASE: db
@@ -61,6 +64,7 @@ mysql_slave_2:
 mysql_slave_3:
     image: mariadb:10.2
     volumes:
+        - ./config/docker/db/my.cnf:/etc/mysql/conf.d/docker.cnf
         - ./config/docker/db/init-mysql-slave.sql:/docker-entrypoint-initdb.d/init.sql:ro
     environment:
         MYSQL_DATABASE: db

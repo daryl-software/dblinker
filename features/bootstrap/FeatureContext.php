@@ -29,7 +29,11 @@ trait FeatureContext
         assert($n === 0, "There is $n active connection(s) on the test server");
     }
 
-    private function rootConnection()
+    /**
+     * @return \Doctrine\DBAL\Connection
+     * @throws \Doctrine\DBAL\DBALException
+     */
+    private function rootConnection(): \Doctrine\DBAL\Connection
     {
         $params = $this->masterParams('root');
         return DriverManager::getConnection($params);
@@ -50,7 +54,7 @@ trait FeatureContext
      * @Given the server accept :n more connection
      * @Given the server accept :n more connections
      */
-    abstract public function theServerAcceptMoreConnections($n);
+    abstract public function theServerAcceptMoreConnections(int $n);
 
     /**
      * @Given a master-slaves connection :connectionName with :slaveCount slaves
@@ -155,7 +159,7 @@ trait FeatureContext
     /**
      * @When I create a deadlock on :connectionName with :connectionNameFork
      */
-    public function iCreateADeadlockOn($connectionName, $connectionNameFork)
+    public function iCreateADeadlockOn($connectionName, $connectionNameFork): void
     {
         $this->iExecOn($connectionName, 'CREATE TABLE test_deadlock (id INT PRIMARY KEY) Engine=InnoDb');
         $this->iExecOn($connectionName, 'SET AUTOCOMMIT = 0');
@@ -493,6 +497,7 @@ trait FeatureContext
     {
         // drop table first ??
         $retryStrategy = $this->connections[$connectionName]['params']['retryStrategy'];
+        $this->wrpdcnx($connectionName)->exec('DROP TABLE IF EXISTS ' . $tableName);
         $retryStrategy->addHandler(function (
             Exception $exception,
             RetryConnection $connection

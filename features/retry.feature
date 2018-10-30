@@ -74,10 +74,10 @@ Feature: Retry
         Given the server accept 1 more connections
           And a retry connection "conn1" limited to 1 retry
           And a retry connection "conn2" limited to 1 retry
-         When I query "SELECT 1" on "conn1"
+          And I query "SELECT 1" on "conn1"
           And I query "SELECT 1" on "conn2"
          Then the last query failed on "conn2"
-          And the last error should be "CON_COUNT" on "conn2"
+          And the last error should be "CON_USER_COUNT" on "conn2"
           And "conn2" retry limit should be 0
 
     Scenario: No such table
