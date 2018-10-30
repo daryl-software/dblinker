@@ -81,7 +81,7 @@ Feature: Retry
           And "conn2" retry limit should be 0
 
     Scenario: No such table
-        Given table "not_here_iCanGetTheDatabaseNameOnyet" can be created automatically on "conn"
+        Given table "not_here_yet" can be created automatically on "conn"
          When I prepare a statement "SELECT * FROM not_here_yet" on "conn"
           And I execute this statement
          Then the last statement succeeded

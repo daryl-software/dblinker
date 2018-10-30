@@ -401,7 +401,7 @@ trait FeatureContext
     /**
      * @When I prepare a statement :query on :connectionName
      */
-    public function iPrepareAStatementOn($query, $connectionName)
+    public function iPrepareAStatementOn(string $query, string $connectionName): void
     {
         $connection = $this->getConnection($connectionName);
         $this->statement = $connection->prepare($query);
@@ -498,10 +498,7 @@ trait FeatureContext
         // drop table first ??
         $retryStrategy = $this->connections[$connectionName]['params']['retryStrategy'];
         $this->wrpdcnx($connectionName)->exec('DROP TABLE IF EXISTS ' . $tableName);
-        $retryStrategy->addHandler(function (
-            Exception $exception,
-            RetryConnection $connection
-        ) use ($tableName) {
+        $retryStrategy->addHandler(function (Exception $exception,RetryConnection $connection) use ($tableName) {
             if (strpos($exception->getMessage(), $tableName) !== false) {
                 $connection->exec("CREATE TABLE {$tableName} (id INT)");
                 return true;
