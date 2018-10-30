@@ -192,6 +192,21 @@ trait FeatureContext
     }
 
     /**
+     * @When I exec update :sql on :connectionName
+     */
+    public function iExecUpdateOn($connectionName, $sql)
+    {
+        $sql = $this->prepareSql($sql);
+        $this->connections[$connectionName]['last-result'] = null;
+        $this->connections[$connectionName]['last-error']  = null;
+        try {
+            $this->connections[$connectionName]['last-result'] = $this->getConnection($connectionName)->executeUpdate($sql);
+        } catch (\Exception $e) {
+            $this->connections[$connectionName]['last-error'] = $e;
+        }
+    }
+
+    /**
      * @Then :connectionName is on slave
      */
     public function isOnSlave($connectionName)
@@ -220,7 +235,7 @@ trait FeatureContext
      * @Given a retry connection :connectionName limited to :n retry
      * @Given a retry connection :connectionName limited to :n retry with username :username
      */
-    public function aRetryConnectionLimitedToRetryWithusername($connectionName, $n, $username = null)
+    public function aRetryConnectionLimitedToRetryWithusername(string $connectionName, int $n, string $username = null)
     {
         $this->connections[$connectionName] = [
             'params' => [
@@ -302,18 +317,6 @@ trait FeatureContext
     {
         $retryLimit = $this->connections[$connectionName]['params']['retryStrategy']->retryLimit();
         assert($retryLimit === (int) $n, "Retry limit is $retryLimit, $n expected.");
-    }
-
-    /**
-     * @Given there is a table :tableName on :connectionName
-     */
-    public function thereIsATableOn($tableName, $connectionName): void
-    {
-        $connection = $this->getConnection($connectionName);
-        $sql = <<<SQL
-    CREATE TABLE $tableName (id INTEGER(10), n INTEGER(10)) Engine=InnoDb
-SQL;
-        $connection->exec($sql);
     }
 
     /**
@@ -439,9 +442,6 @@ SQL;
      */
     public function theLastErrorShouldBeOn(string $errorNameExpected, $connectionName)
     {
-        if (!empty($this->connections[$connectionName]['params']['retryStrategy'])) {
-            echo $this->connections[$connectionName]['params']['retryStrategy']->lastError()->getCode() . PHP_EOL;
-        }
         $error = $this->connections[$connectionName]['last-error'] ?: $this->connections[$connectionName]['params']['retryStrategy']->lastError();
 
         $errorCode = $this->errorCode($error);

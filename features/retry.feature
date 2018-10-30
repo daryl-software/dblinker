@@ -14,15 +14,15 @@ Feature: Retry
     Scenario: Lock wait timeout exceeded
         Given a retry connection "once" limited to 1 retry
           And a retry connection "@master" limited to 1 retry
-          And I exec "SET SESSION innodb_lock_wait_timeout = 1" on "@master"
-          And I exec "SET SESSION innodb_lock_wait_timeout = 1" on "once"
-          And there is a table "test_lock" on "@master"
-          And I exec "CREATE TABLE $tableName (id INT PRIMARY KEY) Engine=InnoDb" on "@master"
-          And I exec "INSERT INTO test_lock (id) VALUES (1)" on "@master"
+          And I exec update "SET SESSION innodb_lock_wait_timeout = 10" on "@master"
+          And I exec update "SET SESSION innodb_lock_wait_timeout = 1" on "once"
+          And I exec update "DROP TABLE IF EXISTS test_lock;" on "@master"
+          And I exec update "CREATE TABLE test_lock (id INT PRIMARY KEY) Engine=InnoDb" on "@master"
+          And I exec update "INSERT INTO test_lock (id) VALUES (1)" on "@master"
           And I start a transaction on "@master"
-          And I exec "UPDATE test_lock SET id = 2" on "@master"
-         When I exec "UPDATE test_lock SET id = 3" on "once"
-         Then the last query failed on "conn"
+          And I exec update "UPDATE test_lock SET id = 2" on "@master"
+          And I exec update "UPDATE test_lock SET id = 3" on "once"
+         Then the last query failed on "once"
           And the last error should be "LOCK_WAIT_TIMEOUT" on "once"
           And "once" retry limit should be 0
     @skip-travis @skip-mysqli @skip-pdo-pgsql
