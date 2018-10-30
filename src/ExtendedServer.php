@@ -41,7 +41,7 @@ abstract class ExtendedServer
         }
     }
 
-    private function dbalConfig(): array {
+    public function dbalConfig(): array {
         return [
             'host' => $this->host,
             'user' => $this->user,
@@ -58,12 +58,12 @@ abstract class ExtendedServer
 
     public function __toString()
     {
-        return $this->user . '@' . $this->host . ':' . $this->dbname;
+        return get_class($this) . ' - ' . $this->user . '@' . $this->host . ':' . $this->dbname;
     }
 
     public function close() {
         if ($this->isConnected()) {
-            echo \get_class($this) . ' ' . $this . PHP_EOL;
+//            echo \get_class($this) . ' ' . $this . PHP_EOL;
             $this->connection->close();
         }
     }

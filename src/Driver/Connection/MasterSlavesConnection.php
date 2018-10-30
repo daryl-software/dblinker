@@ -74,6 +74,11 @@ class MasterSlavesConnection implements Connection
         }, $slaves));
     }
 
+    /**
+     * @param bool|null $forced
+     * @return Connection
+     * @throws \Doctrine\DBAL\DBALException
+     */
     private function masterConnection(bool $forced = null): Connection
     {
         if ($forced !== null) {
@@ -83,7 +88,11 @@ class MasterSlavesConnection implements Connection
         return $this->master->connection();
     }
 
-    private function slaveConnection(): Connection
+    /**
+     * @return Connection
+     * @throws \Doctrine\DBAL\DBALException
+     */
+    private function slaveConnection(): ?Connection
     {
         if (empty($this->slaves)) {
             return $this->masterConnection();
@@ -99,26 +108,41 @@ class MasterSlavesConnection implements Connection
             }
         }
         if (!$x) {
-            $x = Slave::random($this->slaves);
+            $x = $this->randomSlave($this->slaves);
         }
 
         $this->lastConnection = $x;
         return $x->connection();
     }
 
+    /**
+     * @param Slave[] $slaves
+     * @return Slave
+     */
+    private function randomSlave(array $slaves): Slave
+    {
+        $weights = [];
+        foreach ($slaves as $slaveIndex => $slave) {
+            if (!$this->isSlaveOk($slave)) {
+                continue;
+            }
+            $weights = array_merge($weights, array_fill(0, $slave->getWeight(), $slaveIndex));
+        }
+        return $slaves[$weights[array_rand($weights)]];
+    }
+
+    /**
+     * @return ExtendedServer|null
+     */
     public function getLastConnection(): ?ExtendedServer
     {
         return $this->lastConnection;
     }
 
-    public function disableCurrentSlave(bool $save = false): void
-    {
-        if ($this->lastConnection instanceof Slave) {
-            $this->lastConnection->disable();
-        }
-    }
-
-    public function slaves()
+    /**
+     * @return Slave[]|null
+     */
+    public function slaves(): ?array
     {
         return $this->slaves;
     }
@@ -250,14 +274,26 @@ class MasterSlavesConnection implements Connection
         return $this->cache !== null;
     }
 
-    private function getCacheKey(array $params) {
-        return 'MasterSlavesConnection_' .strtr(serialize($params), '{}()/@:', '______|');
+    private function getCacheKey(Slave $slave) {
+        return 'Slave_' . md5(serialize($slave->dbalConfig()));
     }
 
-    public function setSlaveStatus(int $slaveIndex, bool $running, ?int $delay) {
+    public function setSlaveStatus(Slave $slave, bool $running, int $delay = null) {
         if ($this->hasCache()) {
-            $this->cache->setCacheItem($this->getCacheKey($this->slaves[$slaveIndex]), ['running' => $running, 'delay' => $delay], $this->slaveStatusCacheTtl);
+            $this->cache->setCacheItem($this->getCacheKey($slave), ['running' => $running, 'delay' => $delay], $this->slaveStatusCacheTtl);
         }
         return ['running' => $running, 'delay' => $delay];
+    }
+
+    private function isSlaveOK(Slave $slave): bool {
+        if ($this->hasCache()) {
+            $data = $this->cache->getCacheItem($this->getCacheKey($slave));
+            if (is_array($data)) {
+                if ($data['runnning'] === false || $data['delay'] > $this->maxSlaveDelay) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 }

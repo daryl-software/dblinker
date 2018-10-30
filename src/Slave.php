@@ -18,22 +18,6 @@ class Slave extends ExtendedServer
         return $this->weight;
     }
 
-    /**
-     * @param Slave[] $slaves
-     * @return Slave
-     */
-    public static function random(array $slaves): Slave
-    {
-        $weights = [];
-        foreach ($slaves as $slaveIndex => $slave) {
-//            if (!$this->isSlaveOk($slaveIndex)) {
-//                continue;
-//            }
-            $weights = array_merge($weights, array_fill(0, $slave->getWeight(), $slaveIndex));
-        }
-        return $slaves[$weights[array_rand($weights)]];
-    }
-
     public function status() {
         if (stripos($this->driver, 'pgsql') !== false) {
             try {
@@ -58,20 +42,6 @@ class Slave extends ExtendedServer
                 return $this->setSlaveStatus(false, null);
             }
         }
-    }
-
-    public function isSlaveOk(bool $cachedValue, int $maxdelay = null) {
-//        $maxdelay = $maxdelay ?? $this->maxSlaveDelay;
-//            $status = $this->getSlaveStatus($slaveIndex);
-//            }
-//        } else {
-//            $status = $this->getSlaveStatus($slaveIndex);
-//        }
-//        if (!$status['running'] || $status['delay'] >= $maxdelay) {
-//            $this->disableCurrentSlave();
-//            return false;
-//        }
-        return true;
     }
 
     public function disable() {

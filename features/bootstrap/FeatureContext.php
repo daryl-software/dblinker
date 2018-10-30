@@ -525,8 +525,8 @@ trait FeatureContext
             $connection = $connection->wrappedConnection();
         }
         /** @var \Ez\DbLinker\Driver\Connection\MasterSlavesConnection $connection */
-        $connection->setSlaveStatus(0, false, 120);
-        $connection->isSlaveOk(0);
+        $connection->setSlaveStatus(current($connection->slaves()), false, 120);
+        current($connection->slaves())->disable();
     }
 
     /**
