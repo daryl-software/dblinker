@@ -20,8 +20,12 @@ class PostgreSQLRetryStrategy implements RetryStrategyInterface
 
     private function errorCode(Exception $exception)
     {
-        if (preg_match("/SQLSTATE\[(?<errorCode>[A-Z0-9]*)\]/", $exception->getMessage(), $matches)) {
-            return $matches["errorCode"];
+        if(preg_match("/SQLSTATE\[(?<errorCode>[A-Z0-9]*)\]/", $exception->getMessage(), $matches)) {
+            $code = $matches["errorCode"];
+            if ($code === 'HY000') {
+                $code = '08006';
+            }
+            return $code;
         }
     }
 }

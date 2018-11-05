@@ -6,8 +6,6 @@ use Ez\DbLinker\Driver\Connection\RetryConnection;
 
 trait RetryDriver
 {
-    use WrapperDriver;
-
     /**
      * Attempts to create a connection with the database.
      *

@@ -2,7 +2,17 @@
 Feature: Master / Slaves
 
     Background:
-        Given a master-slaves connection "conn" with 3 slaves
+      Given a master-slaves connection "conn" with 3 slaves
+
+    Scenario: Insert a row on master
+    When I queryupdate "INSERT INTO users (name, email) VALUES ('test', ?)" with param "bob@test.com" on "conn"
+    Then the last query succeeded on "conn"
+    And "conn" is on master
+
+    Scenario: Read prepared statement on slave
+        When I query "SELECT * FROM users WHERE email = ?" with param 'max@yopmail.com' on "conn"
+        Then the last query succeeded on "conn"
+         And "conn" is on slave
 
     Scenario: Read request on slave
          When I query "SELECT 1" on "conn"
@@ -21,21 +31,10 @@ Feature: Master / Slaves
           And "conn" is on slave
 
     Scenario: Connect on master when there is no slaves
-        Given a master-slaves connection "connMaster" with no slaves
+        Given a master-slaves connection "connMaster" with 0 slaves
          When I query "SELECT 1" on "connMaster"
          Then the last query succeeded on "connMaster"
           And "connMaster" is on master
-
-    Scenario: Force request on master
-         When I force requests on master for "conn"
-          And "conn" is on master
-
-    Scenario: Force request back on slave
-        Given requests are forced on master for "conn"
-          And I force requests on slave for "conn"
-         When I query "SELECT 1" on "conn"
-         Then the last query succeeded on "conn"
-          And "conn" is on slave
 
     Scenario: Connect on master for transaction
         Given a transaction is started on "conn"
@@ -43,10 +42,13 @@ Feature: Master / Slaves
          Then the last query succeeded on "conn"
           And "conn" is on master
 
-    Scenario: Get database
-         Then I can get the database name on "conn"
-
     Scenario: Disable cache
+        Given the cache is disable on "conn"
+         When I query "SELECT 1" on "conn"
+         Then the last query succeeded on "conn"
+          And "conn" is on slave
+
+    Scenario: Test executeUpdate
         Given the cache is disable on "conn"
          When I query "SELECT 1" on "conn"
          Then the last query succeeded on "conn"

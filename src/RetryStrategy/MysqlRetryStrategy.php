@@ -15,6 +15,8 @@ class MysqlRetryStrategy implements RetryStrategyInterface
         return [
             // ER_CON_COUNT_ERROR
             1040 => ["wait" => 1],
+            // ER_CON_USER_COUNT_ERROR
+            1203 => ["wait" => 1],
             // ER_DBACCESS_DENIED_ERROR
             1044 => ["changeServer" => true],
             // ER_ACCESS_DENIED_ERROR

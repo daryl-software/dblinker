@@ -2,7 +2,7 @@ composer:
     build: config/docker/php/composer
     volumes:
         - ./composer.json:/scripts/composer.json:rw
-        - ./composer.lock:/scripts/composer.lock:rw
+#        - ./composer.lock:/scripts/composer.lock:rw
         - ./bin:/scripts/bin:rw
     volumes_from:
         - vendor
@@ -19,19 +19,95 @@ behat:
     volumes_from:
         - vendor
     links:
-        - mysql
-        - postgresql
-mysql:
+        - mysql_master
+        - mysql_slave_1
+        - mysql_slave_2
+        - mysql_slave_3
+        - postgresql_master
+        - postgresql_slave_1
+        - postgresql_slave_2
+        - postgresql_slave_3
+
+mysql_master:
     image: mariadb:10.2
+    volumes:
+        - ./config/docker/db/my.cnf:/etc/mysql/conf.d/docker.cnf
+        - ./config/docker/db/init-mysql-master.sql:/docker-entrypoint-initdb.d/init.sql:ro
     environment:
         MYSQL_DATABASE: db
-        MYSQL_USER: user
+        MYSQL_USER: master_user
         MYSQL_PASSWORD: password
         MYSQL_ROOT_PASSWORD: rootpassword
-postgresql:
-    image: postgres:9.6
+
+mysql_slave_1:
+    image: mariadb:10.2
+    volumes:
+        - ./config/docker/db/my.cnf:/etc/mysql/conf.d/docker.cnf
+        - ./config/docker/db/init-mysql-slave.sql:/docker-entrypoint-initdb.d/init.sql:ro
     environment:
-        POSTGRES_DATABASE: db
-        POSTGRES_USER: user
+        MYSQL_DATABASE: db
+        MYSQL_USER: slave_user
+        MYSQL_PASSWORD: password
+        MYSQL_ROOT_PASSWORD: rootpassword
+
+mysql_slave_2:
+    image: mariadb:10.2
+    volumes:
+        - ./config/docker/db/my.cnf:/etc/mysql/conf.d/docker.cnf
+        - ./config/docker/db/init-mysql-slave.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    environment:
+        MYSQL_DATABASE: db
+        MYSQL_USER: slave_user
+        MYSQL_PASSWORD: password
+        MYSQL_ROOT_PASSWORD: rootpassword
+
+mysql_slave_3:
+    image: mariadb:10.2
+    volumes:
+        - ./config/docker/db/my.cnf:/etc/mysql/conf.d/docker.cnf
+        - ./config/docker/db/init-mysql-slave.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    environment:
+        MYSQL_DATABASE: db
+        MYSQL_USER: slave_user
+        MYSQL_PASSWORD: password
+        MYSQL_ROOT_PASSWORD: rootpassword
+
+postgresql_master:
+    image: postgres:10
+    volumes:
+        - ./config/docker/db/init-pgsql-master.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    environment:
+        POSTGRES_DB: db
+        POSTGRES_USER: master_user
+        POSTGRES_PASSWORD: password
+        POSTGRES_ROOT_PASSWORD: password
+
+postgresql_slave_1:
+    image: postgres:10
+    volumes:
+        - ./config/docker/db/init-pgsql-slave.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    environment:
+        POSTGRES_DB: db
+        POSTGRES_USER: slave_user
+        POSTGRES_PASSWORD: password
+        POSTGRES_ROOT_PASSWORD: password
+
+postgresql_slave_2:
+    image: postgres:10
+    volumes:
+        - ./config/docker/db/init-pgsql-slave.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    environment:
+        POSTGRES_DB: db
+        POSTGRES_USER: slave_user
+        POSTGRES_PASSWORD: password
+        POSTGRES_ROOT_PASSWORD: password
+
+postgresql_slave_3:
+    image: postgres:10
+    volumes:
+        - ./config/docker/db/init-pgsql-slave.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    environment:
+        POSTGRES_DB: db
+        POSTGRES_USER: slave_user
         POSTGRES_PASSWORD: password
         POSTGRES_ROOT_PASSWORD: password
