@@ -1,4 +1,13 @@
-language: php
+language: ruby
+
+env:
+    - DOCKER_COMPOSE_VERSION=1.22.0
+
+before_install:
+    - sudo rm /usr/local/bin/docker-compose
+    - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+    - chmod +x docker-compose
+    - sudo mv docker-compose /usr/local/bin
 
 services:
     - docker
@@ -21,7 +30,7 @@ services:
 #    - mysql -u root -e 'FLUSH PRIVILEGES;'
 #
 script:
-    - vendor/bin/behat -s $BEHAT_DB_DRIVER --tags $SKIP_TAGS
+    - docker-compose run --rm behat
 #
 #env:
 #    - BEHAT_DB_DRIVER=mysqli SKIP_TAGS="~@skip-travis&&~@skip-travis-mysqli" DBLINKER_MYSQL_1_ENV_MYSQL_DATABASE=dblinker_test DBLINKER_MYSQL_1_PORT_3306_TCP_ADDR=127.0.0.1 DBLINKER_MYSQL_1_ENV_MYSQL_USER=behat DBLINKER_MYSQL_1_ENV_MYSQL_PASSWORD=behatpassword DBLINKER_MYSQL_1_ENV_MYSQL_ROOT_PASSWORD=
