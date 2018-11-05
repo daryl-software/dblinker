@@ -14,4 +14,4 @@ services:
 
 script:
     - docker-compose run composer install
-    - docker-compose run --rm behat
+    - docker-compose run --rm behat --tags "~@skip-travis&&~@skip-travis-pdo-pgsql&&~@skip-travis-mysqli"

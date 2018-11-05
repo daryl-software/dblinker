@@ -431,7 +431,6 @@ trait FeatureContext
         $this->lastStatementError = null;
         try {
             $this->lastStatementResult = $this->statement->execute();
-            var_dump($this->lastStatementResult);
         } catch (\Exception $e) {
             $this->lastStatementError = $e;
         }
