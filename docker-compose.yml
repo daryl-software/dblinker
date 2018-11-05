@@ -2,7 +2,7 @@ composer:
     build: config/docker/php/composer
     volumes:
         - ./composer.json:/scripts/composer.json:rw
-        - ./composer.lock:/scripts/composer.lock:rw
+#        - ./composer.lock:/scripts/composer.lock:rw
         - ./bin:/scripts/bin:rw
     volumes_from:
         - vendor
