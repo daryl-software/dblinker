@@ -157,8 +157,18 @@ class MasterSlavesConnection implements Connection
     public function prepare($prepareString)
     {
         $cnx = null;
-        if ($this->forceMaster
-            || preg_match('/\b(DELETE|UPDATE|INSERT)\b/i', $prepareString)) {
+        $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'];
+
+        if ($this->forceMaster || $caller === 'executeUpdate') {
+            $cnx = $this->masterConnection();
+        } else if ($caller === 'executeQuery') {
+            if (preg_match('/\b(DELETE|UPDATE|INSERT|REPLACE)\b/i', $prepareString)) {
+                $cnx = $this->masterConnection();
+                error_log('should call executeUpdate()');
+            } else {
+                $cnx = $this->slaveConnection();
+            }
+        } else if (preg_match('/\b(DELETE|UPDATE|INSERT|REPLACE)\b/i', $prepareString)) {
             $cnx = $this->masterConnection();
         } else {
             $cnx = $this->slaveConnection();

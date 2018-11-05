@@ -5,7 +5,7 @@ Feature: Master / Slaves
       Given a master-slaves connection "conn" with 3 slaves
 
     Scenario: Insert a row on master
-    When I query "INSERT INTO users (name, email) VALUES ('test', ?)" with param "bob@test.com" on "conn"
+    When I queryupdate "INSERT INTO users (name, email) VALUES ('test', ?)" with param "bob@test.com" on "conn"
     Then the last query succeeded on "conn"
     And "conn" is on master
 

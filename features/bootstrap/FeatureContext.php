@@ -143,6 +143,20 @@ trait FeatureContext
     }
 
     /**
+     * @When I queryupdate :sql with param :param on :connectionName
+     */
+    public function iQueryUpdateWithParamOn(string $sql, string $param, string $connectionName): void
+    {
+        $this->connections[$connectionName]['last-result'] = null;
+        $this->connections[$connectionName]['last-error']  = null;
+        try {
+            $this->connections[$connectionName]['last-result'] = $this->getConnection($connectionName)->executeUpdate($sql, [$param]);
+        } catch (\Exception $e) {
+            $this->connections[$connectionName]['last-error'] = $e;
+        }
+    }
+
+    /**
      * @When I query :sql on :connectionName
      */
     public function iQueryOn(string $connectionName, string $sql)
