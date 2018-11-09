@@ -511,7 +511,7 @@ trait FeatureContext
         // drop table first ??
         $retryStrategy = $this->connections[$connectionName]['params']['retryStrategy'];
         $this->wrpdcnx($connectionName)->exec('DROP TABLE IF EXISTS ' . $tableName);
-        $retryStrategy->addHandler(function (Exception $exception,RetryConnection $connection) use ($tableName) {
+        $retryStrategy->addHandler(function (Exception $exception, RetryConnection $connection) use ($tableName) {
             if (strpos($exception->getMessage(), $tableName) !== false) {
                 $connection->exec("CREATE TABLE {$tableName} (id INT)");
                 return true;
