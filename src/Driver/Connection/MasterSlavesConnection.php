@@ -55,7 +55,8 @@ class MasterSlavesConnection implements Connection
         $this->cache = $cache;
     }
 
-    public function disableCache() {
+    public function disableCache(): void
+    {
         $this->cache->disableCache();
     }
 
@@ -63,7 +64,7 @@ class MasterSlavesConnection implements Connection
      * @param array $slaves
      * @return Slave[]
      */
-    private function filteredSlaves(array $slaves)
+    private function filteredSlaves(array $slaves): array
     {
         // keep slave with weight > 0
         return array_filter(array_map(function ($slave) {
@@ -79,7 +80,7 @@ class MasterSlavesConnection implements Connection
      * @return Connection
      * @throws \Doctrine\DBAL\DBALException
      */
-    private function masterConnection(bool $forced = null): Connection
+    public function masterConnection(bool $forced = null): Connection
     {
         if ($forced !== null) {
             $this->forceMaster = $forced;
@@ -92,7 +93,7 @@ class MasterSlavesConnection implements Connection
      * @return Connection
      * @throws \Doctrine\DBAL\DBALException
      */
-    private function slaveConnection(): ?Connection
+    public function slaveConnection(): ?Connection
     {
         if (empty($this->slaves)) {
             return $this->masterConnection();
@@ -117,16 +118,19 @@ class MasterSlavesConnection implements Connection
 
     /**
      * @param Slave[] $slaves
-     * @return Slave
+     * @return Slave|null
      */
-    private function randomSlave(array $slaves): Slave
+    private function randomSlave(array $slaves): ?Slave
     {
         $weights = [];
         foreach ($slaves as $slaveIndex => $slave) {
-            if (!$this->isSlaveOk($slave)) {
+            if (!$this->isSlaveOK($slave)) {
                 continue;
             }
             $weights = array_merge($weights, array_fill(0, $slave->getWeight(), $slaveIndex));
+        }
+        if (!\count($weights)) {
+            return null;
         }
         return $slaves[$weights[array_rand($weights)]];
     }
@@ -153,6 +157,7 @@ class MasterSlavesConnection implements Connection
      * @param string $prepareString
      *
      * @return \Doctrine\DBAL\Driver\Statement
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function prepare($prepareString)
     {
@@ -186,6 +191,7 @@ class MasterSlavesConnection implements Connection
      * Executes an SQL statement, returning a result set as a Statement object.
      *
      * @return \Doctrine\DBAL\Driver\Statement
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function query()
     {
@@ -196,10 +202,11 @@ class MasterSlavesConnection implements Connection
     /**
      * Quotes a string for use in a query.
      *
-     * @param string  $input
+     * @param string $input
      * @param integer $type
      *
      * @return string
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function quote($input, $type = \PDO::PARAM_STR)
     {
@@ -212,6 +219,7 @@ class MasterSlavesConnection implements Connection
      * @param string $statement
      *
      * @return integer
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function exec($statement)
     {
@@ -224,6 +232,7 @@ class MasterSlavesConnection implements Connection
      * @param string|null $name
      *
      * @return string
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function lastInsertId($name = null)
     {
@@ -234,6 +243,7 @@ class MasterSlavesConnection implements Connection
      * Initiates a transaction.
      *
      * @return boolean TRUE on success or FALSE on failure.
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function beginTransaction()
     {
@@ -244,6 +254,7 @@ class MasterSlavesConnection implements Connection
      * Commits a transaction.
      *
      * @return boolean TRUE on success or FALSE on failure.
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function commit()
     {
@@ -254,6 +265,7 @@ class MasterSlavesConnection implements Connection
      * Rolls back the current transaction, as initiated by beginTransaction().
      *
      * @return boolean TRUE on success or FALSE on failure.
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function rollBack()
     {
@@ -264,6 +276,7 @@ class MasterSlavesConnection implements Connection
      * Returns the error code associated with the last operation on the database handle.
      *
      * @return string|null The error code, or null if no operation has been run on the database handle.
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function errorCode()
     {
@@ -274,6 +287,7 @@ class MasterSlavesConnection implements Connection
      * Returns extended error information associated with the last operation on the database handle.
      *
      * @return array
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function errorInfo()
     {
@@ -288,7 +302,8 @@ class MasterSlavesConnection implements Connection
         return 'Slave_' . md5(serialize($slave->dbalConfig()));
     }
 
-    public function setSlaveStatus(Slave $slave, bool $running, int $delay = null) {
+    public function setSlaveStatus(Slave $slave, bool $running, int $delay = null): array
+    {
         if ($this->hasCache()) {
             $this->cache->setCacheItem($this->getCacheKey($slave), ['running' => $running, 'delay' => $delay], $this->slaveStatusCacheTtl);
         }
