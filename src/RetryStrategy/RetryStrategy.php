@@ -12,7 +12,7 @@ trait RetryStrategy
 {
     private $retryLimit;
 
-    public function __construct($retryLimit = INF)
+    public function __construct($retryLimit = 8)
     {
         $this->retryLimit = $retryLimit;
     }
