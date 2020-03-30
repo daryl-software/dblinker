@@ -9,7 +9,7 @@ use Ez\DbLinker\Driver\Connection\RetryConnection;
 
 trait MySQLContext
 {
-    private function masterParams($username = null, $password = '') {
+    protected function masterParams($username = null, $password = '') {
         $params = [
             'host'          => getenv('DBLINKER_MYSQL_1_PORT_3306_TCP_ADDR'),
             'user'          => getenv('DBLINKER_MYSQL_1_ENV_MYSQL_USER'),
@@ -31,7 +31,7 @@ trait MySQLContext
         return getenv('DBLINKER_MYSQL_1_ENV_MYSQL_DATABASE');
     }
 
-    private function activeConnectionsCount()
+    protected function activeConnectionsCount()
     {
         $connection = $this->rootConnection();
         gc_collect_cycles();
@@ -76,12 +76,12 @@ trait MySQLContext
         gc_collect_cycles();
     }
 
-    private function retryStrategy($n)
+    protected function retryStrategy($n)
     {
         return new MysqlRetryStrategy($n);
     }
 
-    private function errorCode(Exception $exception)
+    protected function errorCode(Exception $exception)
     {
         if ($exception instanceof DBALException) {
             $exception = $exception->getPrevious();
@@ -106,7 +106,7 @@ trait MySQLContext
         return $sql;
     }
 
-    private function errorToCode($error)
+    protected function errorToCode($error)
     {
         $errors = [
             "BAD_DB" => 1049,
@@ -130,10 +130,7 @@ class MysqlRetryStrategy extends Ez\DbLinker\RetryStrategy\MysqlRetryStrategy
     private $lastError = null;
     private $handlers = [];
 
-    public function shouldRetry(
-        Exception $exception,
-        RetryConnection $connection
-    ) {
+    public function shouldRetry(Exception $exception, RetryConnection $connection): bool {
         $this->lastError = $exception;
         return array_reduce($this->handlers, function($retry, Closure $handler) use ($exception, $connection) {
             return $retry || $handler($exception, $connection);

@@ -6,7 +6,7 @@ use Ez\DbLinker\Driver\Connection\RetryConnection;
 
 trait PostgreSQLContext
 {
-    private function masterParams($username = null, $password = '') {
+    protected function masterParams($username = null, $password = '') {
         $params = [
             'host'          => getenv('DBLINKER_POSTGRESQL_1_PORT_5432_TCP_ADDR'),
             'user'          => getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_USER'),
@@ -29,7 +29,7 @@ trait PostgreSQLContext
         return getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_DATABASE');
     }
 
-    private function activeConnectionsCount()
+    protected function activeConnectionsCount()
     {
         return 0;
     }
@@ -62,13 +62,13 @@ trait PostgreSQLContext
         gc_collect_cycles();
     }
 
-    private function retryStrategy($n)
+    protected function retryStrategy($n)
     {
         return new PostgreSQLRetryStrategy($n);
     }
 
 
-    private function errorCode(Exception $exception)
+    protected function errorCode(Exception $exception)
     {
         if(preg_match("/SQLSTATE\[(?<errorCode>[A-Z0-9]*)\]/", $exception->getMessage(), $matches)) {
             return $matches["errorCode"];
@@ -93,7 +93,7 @@ trait PostgreSQLContext
         return $sql;
     }
 
-    private function errorToCode($error)
+    protected function errorToCode($error)
     {
         if ($error === null) {
             return;
@@ -120,7 +120,7 @@ class PostgreSQLRetryStrategy extends Ez\DbLinker\RetryStrategy\PostgreSQLRetryS
     public function shouldRetry(
         Exception $exception,
         RetryConnection $connection
-    ) {
+    ): bool {
         $this->lastError = $exception;
         return array_reduce($this->handlers, function($retry, Closure $handler) use ($exception, $connection) {
             return $retry || $handler($exception, $connection);
