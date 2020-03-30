@@ -9,6 +9,7 @@ use Doctrine\DBAL\DriverManager;
 abstract class ExtendedServer
 {
     protected $host;
+    protected $port;
     protected $user;
     protected $password;
     protected $dbname;
@@ -26,6 +27,7 @@ abstract class ExtendedServer
         foreach ($params as $key => $value) {
             switch ($key) {
                 case 'host':
+                case 'port':
                 case 'user':
                 case 'password':
                 case 'dbname':
@@ -44,6 +46,7 @@ abstract class ExtendedServer
     public function dbalConfig(): array {
         return [
             'host' => $this->host,
+            'port' => $this->port,
             'user' => $this->user,
             'password' => $this->password,
             'dbname' => $this->dbname,
@@ -58,7 +61,7 @@ abstract class ExtendedServer
 
     public function __toString()
     {
-        return get_class($this) . ' - ' . $this->user . '@' . $this->host . ':' . $this->dbname;
+        return get_class($this) . ' - ' . $this->user . '@' . $this->host . ':' . $this->port . '/' . $this->dbname;
     }
 
     public function close() {
