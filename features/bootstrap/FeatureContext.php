@@ -363,10 +363,8 @@ trait FeatureContext
     {
         if ($this->connections[$connectionName]['last-result'] === null) {
             $lastError = $this->connections[$connectionName]['last-error'];
-            if ($lastError instanceof \Exception) {
+            if ($lastError instanceof \Throwable) {
                 $message = $lastError->getMessage();
-            } else if ($lastError !== null) {
-                $message = print_r($lastError, true);
             } else {
                 $message = print_r($lastError, true);
             }

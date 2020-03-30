@@ -1,13 +1,14 @@
-FROM isanosyan/php:7.1-cli-base
+FROM php:7.4-cli
 
-RUN apt-get update
-RUN apt-get install -y git file libpq-dev php-apcu php7.1-dev php7.1-mbstring php7.1-mysql php7.1-pgsql
-RUN cd /tmp/ && git clone git://github.com/xdebug/xdebug.git
-RUN cd /tmp/xdebug && git checkout XDEBUG_2_5_5 && phpize && ./configure --enable-xdebug && make && make install
+RUN apt-get update && apt-get install -y libpq-dev \
+    && docker-php-ext-configure pgsql \
+    && docker-php-ext-install -j$(nproc) pcntl pdo_pgsql pdo_mysql mysqli \
+    && docker-php-ext-enable pcntl pdo_pgsql pdo_mysql mysqli
 
-COPY apc.ini /etc/php/7.1/mods-available/apcu.ini
-RUN phpenmod -v ALL -s ALL apcu
+RUN pecl install redis apcu xdebug \
+    && docker-php-ext-enable redis xdebug apcu
 
+COPY apc.ini /etc/php/7.4/mods-available/apcu.ini
 
 ENTRYPOINT ["php", "/scripts/vendor/bin/behat"]
 

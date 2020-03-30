@@ -1,7 +1,7 @@
 @master-slaves
 Feature: Master / Slaves
 
-    Background:
+  Background:
       Given a master-slaves connection "conn" with 3 slaves
 
     Scenario: Insert a row on master
