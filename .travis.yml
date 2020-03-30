@@ -1,32 +1,17 @@
-language: php
-
-php:
-    - "7.1"
-
-addons:
-    postgresql: "9.6"
-
-before_script:
-    - phpenv config-add config/docker/php/behat/apc.ini
-    - composer install
-    - psql -c "create role admin login createdb password 'adminpassword' superuser ;" -U postgres
-    - psql -c "create role behat login createdb password 'behatpassword';" -U postgres
-    - psql -c 'create database behat OWNER=behat;' -U postgres
-    - psql -c 'create database dblinker_test OWNER=behat;' -U postgres
-    - psql -c 'create database forbidden_db;'
-    - mysql -e 'create database dblinker_test;'
-    - mysql -e 'create database forbidden_db;'
-    - mysql -e 'CREATE USER "behat"@"localhost" IDENTIFIED BY "behatpassword";'
-    - mysql -u root -e 'GRANT ALL PRIVILEGES ON dblinker_test.* TO "behat"@"localhost";'
-    - mysql -u root -e 'FLUSH PRIVILEGES;'
-
-script:
-    - vendor/bin/behat -s $BEHAT_DB_DRIVER --tags $SKIP_TAGS
+language: ruby
 
 env:
-    - BEHAT_DB_DRIVER=mysqli SKIP_TAGS="~@skip-travis&&~@skip-travis-mysqli" DBLINKER_MYSQL_1_ENV_MYSQL_DATABASE=dblinker_test DBLINKER_MYSQL_1_PORT_3306_TCP_ADDR=127.0.0.1 DBLINKER_MYSQL_1_ENV_MYSQL_USER=behat DBLINKER_MYSQL_1_ENV_MYSQL_PASSWORD=behatpassword DBLINKER_MYSQL_1_ENV_MYSQL_ROOT_PASSWORD=
-    - BEHAT_DB_DRIVER=pdo_mysql SKIP_TAGS="~@skip-travis&&~@skip-travis-pdo-mysql" DBLINKER_MYSQL_1_ENV_MYSQL_DATABASE=dblinker_test DBLINKER_MYSQL_1_PORT_3306_TCP_ADDR=127.0.0.1 DBLINKER_MYSQL_1_ENV_MYSQL_USER=behat DBLINKER_MYSQL_1_ENV_MYSQL_PASSWORD=behatpassword DBLINKER_MYSQL_1_ENV_MYSQL_ROOT_PASSWORD=
-    - BEHAT_DB_DRIVER=pdo_pgsql SKIP_TAGS="~@skip-travis&&~@skip-travis-pdo-pgsql" DBLINKER_POSTGRESQL_1_ENV_POSTGRES_DATABASE=dblinker_test DBLINKER_POSTGRESQL_1_PORT_5432_TCP_ADDR=127.0.0.1 DBLINKER_POSTGRESQL_1_ENV_POSTGRES_USER=behat DBLINKER_POSTGRESQL_1_ENV_POSTGRES_PASSWORD=behatpassword DBLINKER_POSTGRES_1_ENV_POSTGRES_ROOT_USER=admin DBLINKER_POSTGRES_1_ENV_POSTGRES_ROOT_PASSWORD=adminpassword
+    - DOCKER_COMPOSE_VERSION=1.22.0
 
-matrix:
-    fast_finish: true
+before_install:
+    - sudo rm /usr/local/bin/docker-compose
+    - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+    - chmod +x docker-compose
+    - sudo mv docker-compose /usr/local/bin
+
+services:
+    - docker
+
+script:
+    - docker-compose run composer install
+    - docker-compose run --rm behat --tags "~@skip-travis&&~@skip-travis-pdo-pgsql&&~@skip-travis-mysqli"

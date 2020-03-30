@@ -7,13 +7,13 @@ use Doctrine\DBAL\Driver\PDOConnection;
 use Doctrine\DBAL\DriverManager;
 use Ez\DbLinker\RetryStrategy;
 
-class RetryConnection implements Connection, ConnectionWrapper
+class RetryConnection implements Connection
 {
-    use ConnectionWrapperTrait;
-
     private $wrappedConnectionParams;
     private $retryStrategy;
     private $transactionLevel = 0;
+    private $wrappedConnection;
+    private $wrappedDriver;
 
     use CallAndRetry;
 
@@ -42,6 +42,7 @@ class RetryConnection implements Connection, ConnectionWrapper
      * Executes an SQL statement, returning a result set as a Statement object.
      *
      * @return \Doctrine\DBAL\Driver\Statement
+     * @throws \Exception
      */
     public function query() {
         return $this->callWrappedConnectionAndRetry(__FUNCTION__, func_get_args());
@@ -131,9 +132,7 @@ class RetryConnection implements Connection, ConnectionWrapper
 
     public function close()
     {
-        if ($this->wrappedConnection instanceof MasterSlavesConnection) {
-            $this->wrappedConnection->close();
-        } elseif ($this->wrappedConnection instanceof PDOConnection) {
+        if ($this->wrappedConnection instanceof PDOConnection) {
         } elseif (method_exists($this->wrappedConnection, "getWrappedResourceHandle")) {
             $this->wrappedConnection->getWrappedResourceHandle()->close();
         }
@@ -145,10 +144,16 @@ class RetryConnection implements Connection, ConnectionWrapper
         return $this->transactionLevel;
     }
 
+    /**
+     * @param $method
+     * @param array $arguments
+     * @return mixed
+     * @throws \Exception
+     */
     private function callWrappedConnectionAndRetry($method, array $arguments)
     {
         return $this->callAndRetry(function () use ($method, $arguments) {
-            return call_user_func_array([$this->wrappedConnection(), $method], $arguments);
+            return \call_user_func_array([$this->wrappedConnection(), $method], $arguments);
         }, $this->retryStrategy, $this);
     }
 
@@ -160,4 +165,25 @@ class RetryConnection implements Connection, ConnectionWrapper
         $this->wrappedConnection = $connection->getWrappedConnection();
         $this->wrappedDriver = $connection->getDriver();
     }
+
+    /**
+     * @inherit
+     * @return \Doctrine\DBAL\Driver\PDOConnection
+     */
+    public function wrappedConnection()
+    {
+        if ($this->wrappedConnection === null) {
+            $this->wrap();
+        }
+        return $this->wrappedConnection;
+    }
+
+    public function wrappedDriver()
+    {
+        if ($this->wrappedDriver === null) {
+            $this->wrap();
+        }
+        return $this->wrappedDriver;
+    }
+
 }

@@ -11,16 +11,34 @@ trait MySQLContext
 {
     protected function masterParams($username = null, $password = '') {
         $params = [
-            'host'          => getenv('DBLINKER_MYSQL_1_PORT_3306_TCP_ADDR'),
-            'user'          => getenv('DBLINKER_MYSQL_1_ENV_MYSQL_USER'),
-            'password'      => getenv('DBLINKER_MYSQL_1_ENV_MYSQL_PASSWORD'),
+            'host'          => getenv('DBLINKER_MYSQL_MASTER_1_PORT_3306_TCP_ADDR'),
+            'user'          => getenv('DBLINKER_MYSQL_MASTER_1_ENV_MYSQL_USER'),
+            'password'      => getenv('DBLINKER_MYSQL_MASTER_1_ENV_MYSQL_PASSWORD'),
             'dbname'        => $this->defaultDatabaseName(),
         ];
         if ($username !== null) {
             $params['user'] = $username;
             if ($username === 'root') {
-                $password = getenv('DBLINKER_MYSQL_1_ENV_MYSQL_ROOT_PASSWORD');
+                $password = getenv('DBLINKER_MYSQL_MASTER_1_ENV_MYSQL_ROOT_PASSWORD');
             }
+            $params['password'] = $password;
+        }
+        return $this->params($params);
+    }
+
+    private function slaveParams(int $number, $username = null, $password = '') {
+        $params = [
+            'host'          => getenv('DBLINKER_MYSQL_SLAVE_'.$number.'_1_PORT_3306_TCP_ADDR'),
+            'user'          => getenv('DBLINKER_MYSQL_SLAVE_'.$number.'_1_ENV_MYSQL_USER'),
+            'password'      => getenv('DBLINKER_MYSQL_SLAVE_'.$number.'_1_ENV_MYSQL_PASSWORD'),
+            'dbname'        => $this->defaultDatabaseName(),
+        ];
+        if ($username !== null && $username !== 'root') {
+            if ($username === 'root') {
+                $password = getenv('DBLINKER_MYSQL_SLAVE_'.$number.'_1_ENV_MYSQL_ROOT_PASSWORD');
+                $username = getenv('DBLINKER_MYSQL_SLAVE_'.$number.'_1_ENV_MYSQL_ROOT_USER');
+            }
+            $params['user'] = $username;
             $params['password'] = $password;
         }
         return $this->params($params);
@@ -28,7 +46,7 @@ trait MySQLContext
 
     private function defaultDatabaseName()
     {
-        return getenv('DBLINKER_MYSQL_1_ENV_MYSQL_DATABASE');
+        return getenv('DBLINKER_MYSQL_MASTER_1_ENV_MYSQL_DATABASE');
     }
 
     protected function activeConnectionsCount()
@@ -46,11 +64,11 @@ trait MySQLContext
      * @Given the server accept :n more connection
      * @Given the server accept :n more connections
      */
-    public function theServerAcceptMoreConnections($n)
+    public function theServerAcceptMoreConnections(int $n)
     {
         $n += $this->activeConnectionsCount();
         $connection = $this->rootConnection();
-        $connection->exec("SET GLOBAL MAX_CONNECTIONS = $n");
+        $connection->exec("SET GLOBAL max_user_connections = $n");
         $connection->close();
         $connection = null;
         gc_collect_cycles();
@@ -70,7 +88,7 @@ trait MySQLContext
             ]
         ];
         $connection = $this->rootConnection();
-        $connection->exec("SET GLOBAL MAX_CONNECTIONS = 50");
+        $connection->exec("SET GLOBAL MAX_USER_CONNECTIONS = 50");
         $connection->close();
         $connection = null;
         gc_collect_cycles();
@@ -116,6 +134,7 @@ trait MySQLContext
             "DBACCESS_DENIED" => 1044,
             "DEADLOCK" => 1213,
             "CON_COUNT" => 1040,
+            "CON_USER_COUNT" => 1203,
             "NO_SUCH_TABLE" => 1146,
         ];
         if (array_key_exists($error, $errors)) {

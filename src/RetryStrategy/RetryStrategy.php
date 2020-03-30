@@ -3,6 +3,7 @@
 namespace Ez\DbLinker\RetryStrategy;
 
 use Exception;
+use Ez\DbLinker\Slave;
 use stdClass;
 use Ez\DbLinker\Driver\Connection\MasterSlavesConnection;
 use Ez\DbLinker\Driver\Connection\RetryConnection;
@@ -11,18 +12,23 @@ trait RetryStrategy
 {
     private $retryLimit;
 
-    public function __construct($retryLimit = INF)
+    public function __construct($retryLimit = 8)
     {
         $this->retryLimit = $retryLimit;
     }
 
-    public function shouldRetry(Exception $exception, RetryConnection $connection) {
+    /**
+     * @param Exception $exception
+     * @param RetryConnection $connection
+     * @return bool
+     */
+    public function shouldRetry(Exception $exception, RetryConnection $connection): bool
+    {
         if (!$this->canRetry($connection)) {
             return false;
         }
         $strategy = $this->errorCodeStrategy($this->errorCode($exception));
-        $res = $this->applyStrategy($strategy, $connection);
-        return $res;
+        return $this->applyStrategy($strategy, $connection);
     }
 
     public function retryLimit()
@@ -63,20 +69,21 @@ trait RetryStrategy
         return true;
     }
 
-    private function changeServer(stdClass $strategy, RetryConnection $connection)
+    private function changeServer(stdClass $strategy, RetryConnection $connection): bool
     {
         if (!$strategy->changeServer) {
             return true;
         }
+        /** @var MasterSlavesConnection $wrappedConnection */
         $wrappedConnection = $connection->wrappedConnection();
-        if ($wrappedConnection instanceof MasterSlavesConnection && !$wrappedConnection->isConnectedToMaster()) {
-            $wrappedConnection->disableCurrentSlave();
+        if ($wrappedConnection instanceof MasterSlavesConnection && $wrappedConnection->getLastConnection() instanceOf Slave) {
+            $wrappedConnection->getLastConnection()->disable();
             return true;
         }
         return false;
     }
 
-    private function reconnect(stdClass $strategy, RetryConnection $connection)
+    private function reconnect(stdClass $strategy, RetryConnection $connection): void
     {
         if ($strategy->reconnect) {
             $connection->close();

@@ -9,6 +9,11 @@ trait CallAndRetry
 {
     /**
      * call $callable and retry if necessary
+     * @param callable $callable
+     * @param RetryStrategy $strategy
+     * @param RetryConnection $connection
+     * @return
+     * @throws Exception
      */
     private function callAndRetry(callable $callable, RetryStrategy $strategy, RetryConnection $connection)
     {
@@ -16,10 +21,7 @@ trait CallAndRetry
             try {
                 return @$callable();
             } catch (Exception $exception) {
-                if (!$strategy->shouldRetry(
-                    $exception,
-                    $connection
-                )) {
+                if (!$strategy->shouldRetry($exception, $connection)) {
                     // stop trying
                     throw $exception;
                 }

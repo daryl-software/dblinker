@@ -2,136 +2,151 @@
 
 namespace Ez\DbLinker\Driver\Connection;
 
-use Exception;
-use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Driver\Connection;
-use Doctrine\DBAL\Driver\PDOConnection;
+use Ez\DbLinker\ExtendedServer;
+use Ez\DbLinker\Master;
+use Ez\DbLinker\Slave;
 
-class MasterSlavesConnection implements Connection, ConnectionWrapper
+class MasterSlavesConnection implements Connection
 {
-    use ConnectionWrapperTrait;
-
+    /**
+     * configuration
+     *
+     * @var Master
+     */
     private $master;
+
+    /**
+     * configuration
+     *
+     * @var Slave[]
+     */
     private $slaves;
-    private $currentConnectionParams;
-    private $currentSlave;
+
+    /**
+     * @var \Ez\DbLinker\Cache
+     */
     private $cache;
-    private $forceMaster;
+
+    /**
+     * @var bool
+     */
+    private $forceMaster = false;
+
+    /**
+     * @var int
+     */
     private $maxSlaveDelay = 30;
+
+    /**
+     * @var int
+     */
     private $slaveStatusCacheTtl = 10;
+
+    /**
+     * @var ExtendedServer
+     */
+    private $lastConnection;
 
     public function __construct(array $master, array $slaves, $cache = null)
     {
-        $this->master = $master;
-        $this->checkSlaves($slaves);
-        $this->slaves = $slaves;
+        $this->master = new Master($master);
+        $this->slaves = $this->filteredSlaves($slaves);
         $this->cache = $cache;
-        $this->forceMaster = false;
     }
 
-    public function disableCache() {
-        return $this->cache->disableCache();
-    }
-
-    private function checkSlaves(array $slaves)
+    public function disableCache(): void
     {
-        foreach ($slaves as $slave) {
-            if ((int)$slave['weight'] < 0) {
-                throw new Exception('Slave weight must be >= 0');
-            }
-        }
+        $this->cache->disableCache();
     }
 
-    public function connectToMaster($forced = null)
+    /**
+     * @param array $slaves
+     * @return Slave[]
+     */
+    private function filteredSlaves(array $slaves): array
+    {
+        // keep slave with weight > 0
+        return array_filter(array_map(function ($slave) {
+            if ((int) $slave['weight'] > 0) {
+                return new Slave($slave);
+            }
+            return null;
+        }, $slaves));
+    }
+
+    /**
+     * @param bool|null $forced
+     * @return Connection
+     * @throws \Doctrine\DBAL\DBALException
+     */
+    public function masterConnection(bool $forced = null): Connection
     {
         if ($forced !== null) {
             $this->forceMaster = $forced;
         }
-        if ($this->currentConnectionParams === $this->master) {
-            return;
-        }
-        $this->currentConnectionParams = $this->master;
-        $this->currentSlave = null;
-        $this->wrappedConnection = null;
-    }
-
-    public function connectToSlave()
-    {
-        $this->forceMaster = false;
-        if ($this->currentConnectionParams !== null && $this->currentConnectionParams !== $this->master) {
-            return;
-        }
-        $this->currentConnectionParams = null;
-        $this->currentSlave = null;
-        $this->wrappedConnection = null;
-        $this->wrap();
-        while (!$this->isSlaveOk() && $this->currentSlave !== null) {
-            $this->wrap();
-        }
-    }
-
-    public function isConnectedToMaster()
-    {
-        return $this->currentSlave === null && $this->currentConnectionParams !== null;
+        $this->lastConnection = $this->master;
+        return $this->master->connection();
     }
 
     /**
-     * @inherit
+     * @return Connection
+     * @throws \Doctrine\DBAL\DBALException
      */
-    public function getCurrentConnection()
+    public function slaveConnection(): ?Connection
     {
-        return $this->wrappedConnection();
-    }
+        if (empty($this->slaves)) {
+            return $this->masterConnection();
+        }
 
-    protected function wrap()
-    {
-        if ($this->wrappedConnection !== null) {
-            return $this->wrappedConnection;
-        }
-        if ($this->currentConnectionParams === null) {
-            $this->currentSlave = $this->chooseASlave();
-            $this->currentConnectionParams = $this->currentSlave !== null ? $this->slaves[$this->currentSlave] : $this->master;
-        }
-        $connection = DriverManager::getConnection($this->currentConnectionParams);
-        $this->wrappedConnection = $connection->getWrappedConnection();
-        $this->wrappedDriver = $connection->getDriver();
-    }
+        $this->forceMaster = false;
+        $x = null;
 
-    private function chooseASlave()
-    {
-        $totalSlavesWeight = $this->totalSlavesWeight();
-        if ($totalSlavesWeight < 1) {
-            return null;
-        }
-        $weightTarget = mt_rand(1, $totalSlavesWeight);
-        foreach ($this->slaves as $n => $slave) {
-            $weightTarget -= $slave['weight'];
-            if ($weightTarget <= 0) {
-                return $n;
+        // if we have a connected slave
+        foreach ($this->slaves as $slave) {
+            if ($slave->isConnected()) {
+                $x = $slave;
             }
         }
-    }
-
-    private function totalSlavesWeight()
-    {
-        $weight = 0;
-        foreach ($this->slaves as $slave) {
-            $weight += $slave['weight'];
+        if (!$x) {
+            $x = $this->randomSlave($this->slaves);
         }
-        return $weight;
+
+        $this->lastConnection = $x;
+        return $x->connection();
     }
 
-    public function disableCurrentSlave()
+    /**
+     * @param Slave[] $slaves
+     * @return Slave|null
+     */
+    private function randomSlave(array $slaves): ?Slave
     {
-        if ($this->currentSlave !== null) {
-            array_splice($this->slaves, $this->currentSlave, 1);
-            $this->currentSlave = null;
+        $weights = [];
+        foreach ($slaves as $slaveIndex => $slave) {
+            if (!$this->isSlaveOK($slave)) {
+                continue;
+            }
+            $weights = array_merge($weights, array_fill(0, $slave->getWeight(), $slaveIndex));
         }
-        $this->currentConnectionParams = null;
-        $this->wrappedConnection = null;
+        if (!\count($weights)) {
+            return null;
+        }
+        return $slaves[$weights[array_rand($weights)]];
     }
 
-    public function slaves()
+    /**
+     * @return ExtendedServer|null
+     */
+    public function getLastConnection(): ?ExtendedServer
+    {
+        return $this->lastConnection;
+    }
+
+    /**
+     * @return Slave[]|null
+     */
+    public function slaves(): ?array
     {
         return $this->slaves;
     }
@@ -142,37 +157,60 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      * @param string $prepareString
      *
      * @return \Doctrine\DBAL\Driver\Statement
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function prepare($prepareString)
     {
-        $this->connectToMaster(true);
-        return $this->wrappedConnection()->prepare($prepareString);
+        $cnx = null;
+        $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'];
+
+        if ($this->forceMaster || $caller === 'executeUpdate') {
+            $cnx = $this->masterConnection();
+        } else if ($caller === 'executeQuery') {
+            if (preg_match('/\b(DELETE|UPDATE|INSERT|REPLACE)\b/i', $prepareString)) {
+                $cnx = $this->masterConnection();
+                error_log('should call executeUpdate()');
+            } else {
+                $cnx = $this->slaveConnection();
+            }
+        } else if (preg_match('/\b(DELETE|UPDATE|INSERT|REPLACE)\b/i', $prepareString)) {
+            $cnx = $this->masterConnection();
+        } else {
+            $cnx = $this->slaveConnection();
+        }
+
+        return $cnx->prepare($prepareString);
+    }
+
+    public function forceMaster(bool $force): void
+    {
+        $this->forceMaster = $force;
     }
 
     /**
      * Executes an SQL statement, returning a result set as a Statement object.
      *
      * @return \Doctrine\DBAL\Driver\Statement
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function query()
     {
-        if ($this->forceMaster !== true) {
-            $this->connectToSlave();
-        }
-        return call_user_func_array([$this->wrappedConnection(), __FUNCTION__], func_get_args());
+        $cnx = $this->forceMaster ? $this->masterConnection() : $this->slaveConnection();
+        return call_user_func_array([$cnx, __FUNCTION__], func_get_args());
     }
 
     /**
      * Quotes a string for use in a query.
      *
-     * @param string  $input
+     * @param string $input
      * @param integer $type
      *
      * @return string
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function quote($input, $type = \PDO::PARAM_STR)
     {
-        return $this->wrappedConnection()->quote($input, $type);
+        return $this->slaveConnection()->quote($input, $type);
     }
 
     /**
@@ -181,11 +219,11 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      * @param string $statement
      *
      * @return integer
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function exec($statement)
     {
-        $this->connectToMaster();
-        return $this->wrappedConnection()->exec($statement);
+        return $this->masterConnection()->exec($statement);
     }
 
     /**
@@ -194,118 +232,92 @@ class MasterSlavesConnection implements Connection, ConnectionWrapper
      * @param string|null $name
      *
      * @return string
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function lastInsertId($name = null)
     {
-        $this->forceMaster = true;
-        return $this->wrappedConnection()->lastInsertId($name);
+        return $this->masterConnection()->lastInsertId($name);
     }
 
     /**
      * Initiates a transaction.
      *
      * @return boolean TRUE on success or FALSE on failure.
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function beginTransaction()
     {
-        $this->connectToMaster(true);
-        return $this->wrappedConnection()->beginTransaction();
+        return $this->masterConnection(true)->beginTransaction();
     }
 
     /**
      * Commits a transaction.
      *
      * @return boolean TRUE on success or FALSE on failure.
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function commit()
     {
-        $this->connectToMaster(false);
-        return $this->wrappedConnection()->commit();
+        return $this->masterConnection(false)->commit();
     }
 
     /**
      * Rolls back the current transaction, as initiated by beginTransaction().
      *
      * @return boolean TRUE on success or FALSE on failure.
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function rollBack()
     {
-        $this->connectToMaster(false);
-        return $this->wrappedConnection()->rollBack();
+        return $this->masterConnection(false)->rollBack();
     }
 
     /**
      * Returns the error code associated with the last operation on the database handle.
      *
      * @return string|null The error code, or null if no operation has been run on the database handle.
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function errorCode()
     {
-        return $this->wrappedConnection()->errorCode();
+        return $this->lastConnection->connection()->errorCode();
     }
 
     /**
      * Returns extended error information associated with the last operation on the database handle.
      *
      * @return array
+     * @throws \Doctrine\DBAL\DBALException
      */
     public function errorInfo()
     {
-        return $this->wrappedConnection()->errorInfo();
-    }
-
-    public function close()
-    {
-        if (!$this->wrappedConnection() instanceof PDOConnection) {
-            return $this->wrappedConnection()->getWrappedResourceHandle()->close();
-        }
+        return $this->lastConnection->connection()->errorInfo();
     }
 
     private function hasCache() {
         return $this->cache !== null;
     }
 
-    private function getCacheKey() {
-        return "MasterSlavesConnection_".strtr(serialize($this->currentConnectionParams), '{}()/@:', '______|');
+    private function getCacheKey(Slave $slave) {
+        return 'Slave_' . md5(serialize($slave->dbalConfig()));
     }
 
-    public function setSlaveStatus(bool $running, ?int $delay) {
+    public function setSlaveStatus(Slave $slave, bool $running, int $delay = null): array
+    {
         if ($this->hasCache()) {
-            $this->cache->setCacheItem($this->getCacheKey(), ["running" => $running, "delay" => $delay], $this->slaveStatusCacheTtl);
+            $this->cache->setCacheItem($this->getCacheKey($slave), ['running' => $running, 'delay' => $delay], $this->slaveStatusCacheTtl);
         }
         return ['running' => $running, 'delay' => $delay];
     }
 
-    private function getSlaveStatus() {
-        try {
-            $sss = $this->wrappedConnection()->query("SHOW SLAVE STATUS")->fetch();
-            if ($sss['Slave_IO_Running'] === 'No' || $sss['Slave_SQL_Running'] === 'No') {
-                // slave is STOPPED
-                return $this->setSlaveStatus(false, INF);
-            } else {
-                return $this->setSlaveStatus(true, $sss['Seconds_Behind_Master']);
-            }
-        } catch (\Exception $e) {
-            return $this->setSlaveStatus(true, 0);
-        }
-    }
-
-    public function isSlaveOk($maxdelay = null) {
-        if ($maxdelay === null) {
-            $maxdelay = $this->maxSlaveDelay;
-        }
+    private function isSlaveOK(Slave $slave): bool {
         if ($this->hasCache()) {
-            $status = $this->cache->getCacheItem($this->getCacheKey());
-            if ($status === null) {
-                $status = $this->getSlaveStatus();
+            $data = $this->cache->getCacheItem($this->getCacheKey($slave));
+            if (is_array($data)) {
+                if ($data['runnning'] === false || $data['delay'] > $this->maxSlaveDelay) {
+                    return false;
+                }
             }
-        } else {
-            $status = $this->getSlaveStatus();
-        }
-        if (!$status['running'] || $status['delay'] >= $maxdelay) {
-            $this->disableCurrentSlave();
-            $this->wrap();
-            return false;
         }
         return true;
     }

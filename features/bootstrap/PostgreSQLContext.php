@@ -1,22 +1,39 @@
 <?php
 
 use Behat\Behat\Tester\Exception\PendingException;
-use Doctrine\DBAL\Exception\DriverException;
 use Ez\DbLinker\Driver\Connection\RetryConnection;
 
 trait PostgreSQLContext
 {
     protected function masterParams($username = null, $password = '') {
         $params = [
-            'host'          => getenv('DBLINKER_POSTGRESQL_1_PORT_5432_TCP_ADDR'),
-            'user'          => getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_USER'),
-            'password'      => getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_PASSWORD'),
+            'host'          => getenv('DBLINKER_POSTGRESQL_MASTER_1_PORT_5432_TCP_ADDR'),
+            'user'          => getenv('DBLINKER_POSTGRESQL_MASTER_1_ENV_POSTGRES_USER'),
+            'password'      => getenv('DBLINKER_POSTGRESQL_MASTER_1_ENV_POSTGRES_PASSWORD'),
             'dbname'        => $this->defaultDatabaseName(),
         ];
         if ($username !== null && $username !== 'root') {
             if ($username === 'root') {
-                $password = getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_ROOT_PASSWORD');
-                $username = getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_ROOT_USER');
+                $password = getenv('DBLINKER_POSTGRESQL_MASTER_1_ENV_POSTGRES_ROOT_PASSWORD');
+                $username = getenv('DBLINKER_POSTGRESQL_MASTER_1_ENV_POSTGRES_ROOT_USER');
+            }
+            $params['user'] = $username;
+            $params['password'] = $password;
+        }
+        return $this->params($params);
+    }
+
+    private function slaveParams(int $number, string $username = null, string $password = '') {
+        $params = [
+            'host'          => getenv('DBLINKER_POSTGRESQL_SLAVE_'.$number.'_1_PORT_5432_TCP_ADDR'),
+            'user'          => getenv('DBLINKER_POSTGRESQL_SLAVE_'.$number.'_1_ENV_POSTGRES_USER'),
+            'password'      => getenv('DBLINKER_POSTGRESQL_SLAVE_'.$number.'_1_ENV_POSTGRES_PASSWORD'),
+            'dbname'        => $this->defaultDatabaseName(),
+        ];
+        if ($username !== null && $username !== 'root') {
+            if ($username === 'root') {
+                $password = getenv('DBLINKER_POSTGRESQL_SLAVE_'.$number.'_1_ENV_POSTGRES_ROOT_PASSWORD');
+                $username = getenv('DBLINKER_POSTGRESQL_SLAVE_'.$number.'_1_ENV_POSTGRES_ROOT_USER');
             }
             $params['user'] = $username;
             $params['password'] = $password;
@@ -26,7 +43,7 @@ trait PostgreSQLContext
 
     private function defaultDatabaseName()
     {
-        return getenv('DBLINKER_POSTGRESQL_1_ENV_POSTGRES_DATABASE');
+        return getenv('DBLINKER_POSTGRESQL_MASTER_1_ENV_POSTGRES_DB');
     }
 
     protected function activeConnectionsCount()
@@ -38,7 +55,7 @@ trait PostgreSQLContext
      * @Given the server accept :n more connection
      * @Given the server accept :n more connections
      */
-    public function theServerAcceptMoreConnections($n)
+    public function theServerAcceptMoreConnections(int $n)
     {
         throw new PendingException;
     }
@@ -56,10 +73,6 @@ trait PostgreSQLContext
                 'last-error' => null,
             ]
         ];
-        $connection = $this->rootConnection();
-        $connection->close();
-        $connection = null;
-        gc_collect_cycles();
     }
 
     protected function retryStrategy($n)
@@ -71,7 +84,11 @@ trait PostgreSQLContext
     protected function errorCode(Exception $exception)
     {
         if(preg_match("/SQLSTATE\[(?<errorCode>[A-Z0-9]*)\]/", $exception->getMessage(), $matches)) {
-            return $matches["errorCode"];
+            $code = $matches["errorCode"];
+            if ($code === 'HY000') {
+                $code = '08006';
+            }
+            return $code;
         }
     }
 
@@ -99,6 +116,7 @@ trait PostgreSQLContext
             return;
         }
         $errors = [
+            '1045' => '08006',
             "BAD_DB" => "08006",
             "ACCESS_DENIED" => "08006",
             "DBACCESS_DENIED" => "08006",

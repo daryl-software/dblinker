@@ -1,12 +1,18 @@
 <?php
 
 use Doctrine\DBAL\DriverManager;
-use Doctrine\DBAL\Exception\TableNotFoundException;
 use Ez\DbLinker\Driver\Connection\RetryConnection;
 
 trait FeatureContext
 {
+    /**
+     * @var array
+     */
     private $connections = [];
+
+    /**
+     * @var \Doctrine\DBAL\Statement
+     */
     private $statement;
 
     /**
@@ -17,46 +23,29 @@ trait FeatureContext
     /**
      * @BeforeScenario
      */
-    public function clearDatabase()
-    {
-        $dbname = $this->masterParams()['dbname'];
-        $connection = $this->rootConnection();
-        $connection->exec("DROP DATABASE IF EXISTS $dbname");
-        $connection->exec("CREATE DATABASE $dbname");
-        $connection->close();
-        $connection = null;
-        gc_collect_cycles();
-    }
-
-    /**
-     * @BeforeScenario
-     */
     public function assertNoActiveConnection()
     {
         $n = $this->activeConnectionsCount();
         assert($n === 0, "There is $n active connection(s) on the test server");
     }
 
-    abstract protected function activeConnectionsCount();
-
-    private function rootConnection()
+    /**
+     * @return \Doctrine\DBAL\Connection
+     * @throws \Doctrine\DBAL\DBALException
+     */
+    private function rootConnection(): \Doctrine\DBAL\Connection
     {
         $params = $this->masterParams('root');
-        $dbname = $params['dbname'];
-        unset($params['dbname']);
         return DriverManager::getConnection($params);
     }
+
+    abstract protected function activeConnectionsCount();
 
     /**
      * @AfterScenario
      */
     public function closeConnections()
     {
-        foreach ($this->connections as $name => $connection) {
-            if (array_key_exists('instance', $connection) && ($instance = $connection['instance'])) {
-                $instance->close();
-            }
-        }
         $this->connections = [];
         gc_collect_cycles();
     }
@@ -65,29 +54,24 @@ trait FeatureContext
      * @Given the server accept :n more connection
      * @Given the server accept :n more connections
      */
-    abstract public function theServerAcceptMoreConnections($n);
+    abstract public function theServerAcceptMoreConnections(int $n);
 
     /**
-     * @Given a master\/slaves connection :connectionName with :slaveCount slaves
+     * @Given a master-slaves connection :connectionName with :slaveCount slaves
      */
-    public function aMasterSlavesConnectionWithSlaves($connectionName, $slaveCount)
+    public function aMasterSlavesConnectionWithSlaves(string $connectionName, int $slaveCount)
     {
-        $master = $this->masterParams();
-
-        $slaveCount = (int) $slaveCount;
         $slaves = [];
-        while ($slaveCount--) {
-            $master['weight'] = $slaveCount;
-            $slaves[] = $master;
+        for ($i = 1; $i <= $slaveCount; $i++) {
+            $slaves[] = array_merge($this->slaveParams($i), ['weight' => rand(1, 20)]);
         }
 
-        $params = [
-            'master' => $master,
-            'slaves' => $slaves,
-            'driverClass' => $this->masterSlaveDriverClass(),
-        ];
         $this->connections[$connectionName] = [
-            'params' => $params,
+            'params' => [
+                'master' => $this->masterParams(),
+                'slaves' => $slaves,
+                'driverClass' => $this->masterSlaveDriverClass(),
+            ],
             'instance' => null,
             'last-result' => null,
             'last-error' => null,
@@ -95,34 +79,28 @@ trait FeatureContext
     }
 
     /**
-     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry
-     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retries
-     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry with username :username
-     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retries with username :username
+     * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retry
+     * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retries
+     * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retry with username :username
+     * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retries with username :username
      */
-    public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetriesWithusername($connectionName, $slaveCount, $n, $username = null)
+    public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetriesWithusername(string $connectionName, int $slaveCount, $n, $username = null)
     {
-        $master = $this->masterParams($username);
-
-        $slaveCount = (int) $slaveCount;
         $slaves = [];
-        $master['weight'] = 1;
-        while ($slaveCount--) {
-            $slaves[] = $master;
-            $master['weight']++;
+        for ($i = 1; $i <= $slaveCount; $i++) {
+            $slaves[] = array_merge($this->slaveParams($i, $username), ['weight' => rand(1, 20)]);
         }
 
-        $params = [
-            'driverClass' => $this->retryDriverClass(),
-            'connectionParams' => [
-                'master' => $master,
-                'slaves' => $slaves,
-                'driverClass' => $this->masterSlaveDriverClass(),
-            ],
-            'retryStrategy' => $this->retryStrategy($n),
-        ];
         $this->connections[$connectionName] = [
-            'params' => $params,
+            'params' => [
+                'driverClass' => $this->retryDriverClass(),
+                'connectionParams' => [
+                    'master' => $this->masterParams($username),
+                    'slaves' => $slaves,
+                    'driverClass' => $this->masterSlaveDriverClass(),
+                ],
+                'retryStrategy' => $this->retryStrategy($n),
+            ],
             'instance' => null,
             'last-result' => null,
             'last-error' => null,
@@ -133,33 +111,60 @@ trait FeatureContext
      * @Given requests are forced on master for :connectionName
      * @When I force requests on master for :connectionName
      */
-    public function requestsAreForcedOnMasterFor($connectionName)
+    public function requestsAreForcedOnMasterFor($connectionName): void
     {
-        $connection = $this->getWrappedConnection($connectionName);
-        if ($connection instanceof Ez\DbLinker\Driver\Connection\RetryConnection) {
-            $connection = $connection->wrappedConnection();
-        }
-        $connection->connectToMaster(true);
+        /** @var RetryConnection $connection */
+        $connection = $this->wrpdcnx($connectionName);
+        /** @var \Ez\DbLinker\Driver\Connection\MasterSlavesConnection $xnz */
+        $xnz = $connection->wrappedConnection();
+        $xnz->forceMaster(true);
     }
 
     /**
      * @When I force requests on slave for :connectionName
      */
-    public function iForceRequestsOnSlaveFor($connectionName)
+    public function iForceRequestsOnSlaveFor($connectionName): void
     {
-        $this->getWrappedConnection($connectionName)->connectToSlave();
+        $this->wrpdcnx($connectionName)->forceMaster(false);
+    }
+
+    /**
+     * @When I query :sql with param :param on :connectionName
+     */
+    public function iQueryWithParamOn(string $sql, string $param, string $connectionName): void
+    {
+        $this->connections[$connectionName]['last-result'] = null;
+        $this->connections[$connectionName]['last-error']  = null;
+        try {
+            $this->connections[$connectionName]['last-result'] = $this->getConnection($connectionName)->executeQuery($sql, [$param]);
+        } catch (\Exception $e) {
+            $this->connections[$connectionName]['last-error'] = $e;
+        }
+    }
+
+    /**
+     * @When I queryupdate :sql with param :param on :connectionName
+     */
+    public function iQueryUpdateWithParamOn(string $sql, string $param, string $connectionName): void
+    {
+        $this->connections[$connectionName]['last-result'] = null;
+        $this->connections[$connectionName]['last-error']  = null;
+        try {
+            $this->connections[$connectionName]['last-result'] = $this->getConnection($connectionName)->executeUpdate($sql, [$param]);
+        } catch (\Exception $e) {
+            $this->connections[$connectionName]['last-error'] = $e;
+        }
     }
 
     /**
      * @When I query :sql on :connectionName
      */
-    public function iQueryOn($connectionName, $sql)
+    public function iQueryOn(string $connectionName, string $sql)
     {
         $this->connections[$connectionName]['last-result'] = null;
         $this->connections[$connectionName]['last-error']  = null;
         try {
-            $connection = $this->getConnection($connectionName);
-            $this->connections[$connectionName]['last-result'] = $connection->query($sql);
+            $this->connections[$connectionName]['last-result'] = $this->getConnection($connectionName)->query($sql);
         } catch (\Exception $e) {
             $this->connections[$connectionName]['last-error'] = $e;
         }
@@ -168,7 +173,7 @@ trait FeatureContext
     /**
      * @When I create a deadlock on :connectionName with :connectionNameFork
      */
-    public function iCreateADeadlockOn($connectionName, $connectionNameFork)
+    public function iCreateADeadlockOn($connectionName, $connectionNameFork): void
     {
         $this->iExecOn($connectionName, 'CREATE TABLE test_deadlock (id INT PRIMARY KEY) Engine=InnoDb');
         $this->iExecOn($connectionName, 'SET AUTOCOMMIT = 0');
@@ -205,11 +210,26 @@ trait FeatureContext
     }
 
     /**
+     * @When I exec update :sql on :connectionName
+     */
+    public function iExecUpdateOn($connectionName, $sql)
+    {
+        $sql = $this->prepareSql($sql);
+        $this->connections[$connectionName]['last-result'] = null;
+        $this->connections[$connectionName]['last-error']  = null;
+        try {
+            $this->connections[$connectionName]['last-result'] = $this->getConnection($connectionName)->executeUpdate($sql);
+        } catch (\Exception $e) {
+            $this->connections[$connectionName]['last-error'] = $e;
+        }
+    }
+
+    /**
      * @Then :connectionName is on slave
      */
     public function isOnSlave($connectionName)
     {
-        assert(!$this->getWrappedConnection($connectionName)->isConnectedToMaster());
+        assert($this->wrpdcnx($connectionName)->getLastConnection() instanceof \Ez\DbLinker\Slave);
     }
 
     /**
@@ -217,14 +237,14 @@ trait FeatureContext
      */
     public function isOnMaster($connectionName)
     {
-        assert($this->getWrappedConnection($connectionName)->isConnectedToMaster());
+        assert($this->wrpdcnx($connectionName)->getLastConnection() instanceof \Ez\DbLinker\Master);
     }
 
     /**
      * @When I start a transaction on :connectionName
      * @Given a transaction is started on :connectionName
      */
-    public function aTransactionIsStartedOn($connectionName)
+    public function aTransactionIsStartedOn($connectionName): void
     {
         $this->getConnection($connectionName)->beginTransaction();
     }
@@ -233,15 +253,14 @@ trait FeatureContext
      * @Given a retry connection :connectionName limited to :n retry
      * @Given a retry connection :connectionName limited to :n retry with username :username
      */
-    public function aRetryConnectionLimitedToRetryWithusername($connectionName, $n, $username = null)
+    public function aRetryConnectionLimitedToRetryWithusername(string $connectionName, int $n, string $username = null)
     {
-        $params = [
-            'driverClass' => $this->retryDriverClass(),
-            'connectionParams' => $this->masterParams($username),
-            'retryStrategy' => $this->retryStrategy($n),
-        ];
         $this->connections[$connectionName] = [
-            'params' => $params,
+            'params' => [
+                'driverClass' => $this->retryDriverClass(),
+                'connectionParams' => $this->masterParams($username),
+                'retryStrategy' => $this->retryStrategy($n),
+            ],
             'instance' => null,
             'last-result' => null,
             'last-error' => null,
@@ -249,46 +268,33 @@ trait FeatureContext
     }
 
     /**
-     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry with db :db
-     * @Given a retry master\/slaves connection :connectionName with :slaveCount slaves limited to :n retry with db :db and username :username
+     * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retry with db :db
+     * @Given a retry master-slaves connection :connectionName with :slaveCount slaves limited to :n retry with db :db and username :username
      */
-    public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetryWithDbAndUsername($connectionName, $slaveCount, $n, $db, $username = null)
+    public function aRetryMasterSlavesConnectionWithSlavesLimitedToRetryWithDbAndUsername(string $connectionName, int $slaveCount, int $n, string $db, string $username = null)
     {
         $master = $this->masterParams($username);
         $master['dbname'] = $db;
 
-        $slaveCount = (int) $slaveCount;
         $slaves = [];
-        while ($slaveCount--) {
-            $master['weight'] = 1;
-            $slaves[] = $master;
+        for ($i = 1; $i <= $slaveCount; $i++) {
+            $slaves[] = array_merge($this->slaveParams($i, $username), ['dbname' => $db, 'weight' => rand(1, 20)]);
         }
 
-        $params = [
-            'driverClass' => $this->retryDriverClass(),
-            'connectionParams' => [
-                'master' => $master,
-                'slaves' => $slaves,
-                'driverClass' => $this->masterSlaveDriverClass(),
-            ],
-            'retryStrategy' => $this->retryStrategy($n),
-        ];
         $this->connections[$connectionName] = [
-            'params' => $params,
+            'params' => [
+                'driverClass' => $this->retryDriverClass(),
+                'connectionParams' => [
+                    'master' => $master,
+                    'slaves' => $slaves,
+                    'driverClass' => $this->masterSlaveDriverClass(),
+                ],
+                'retryStrategy' => $this->retryStrategy($n),
+            ],
             'instance' => null,
             'last-result' => null,
             'last-error' => null,
         ];
-    }
-
-    /**
-     * @Then I can get the database name on :connectionName
-     */
-    public function iCanGetTheDatabaseNameOn($connectionName)
-    {
-        $response = $this->getConnection($connectionName)->getDatabase();
-        $expectedResponse = $this->defaultDatabaseName();
-        assert($response === $expectedResponse, "'$response' matches '$expectedResponse'");
     }
 
     /**
@@ -316,7 +322,7 @@ trait FeatureContext
     /**
      * @Given database has Gone Away on :connectionName
      */
-    public function databaseHasGoneAwayOn($connectionName)
+    public function databaseHasGoneAwayOn($connectionName): void
     {
         $this->getConnection($connectionName)->exec('SET SESSION WAIT_TIMEOUT=1');
         usleep(1100000);
@@ -325,28 +331,16 @@ trait FeatureContext
     /**
      * @Then :connectionName retry limit should be :n
      */
-    public function retryLimitShouldBe($connectionName, $n)
+    public function retryLimitShouldBe($connectionName, $n): void
     {
         $retryLimit = $this->connections[$connectionName]['params']['retryStrategy']->retryLimit();
         assert($retryLimit === (int) $n, "Retry limit is $retryLimit, $n expected.");
     }
 
     /**
-     * @Given there is a table :tableName on :connectionName
-     */
-    public function thereIsATableOn($tableName, $connectionName)
-    {
-        $connection = $this->getConnection($connectionName);
-        $sql = <<<SQL
-    CREATE TABLE $tableName (id INTEGER(10), n INTEGER(10)) Engine=InnoDb
-SQL;
-        $connection->exec($sql);
-    }
-
-    /**
      * @Given there is a row Lock on table :tableName on :connectionName
      */
-    public function thereIsARowLockOn($tableName, $connectionName)
+    public function thereIsARowLockOn($tableName, $connectionName): void
     {
         $connection = $this->getConnection($connectionName);
         $connection->exec("INSERT INTO $tableName (id, n) VALUES (1, 1)");
@@ -357,7 +351,7 @@ SQL;
     /**
      * @When I commit the transaction on :connectionName
      */
-    public function iCommitTheTransactionOn($connectionName)
+    public function iCommitTheTransactionOn($connectionName): void
     {
         $this->getConnection($connectionName)->commit();
     }
@@ -365,7 +359,7 @@ SQL;
     /**
      * @Then the last query succeeded on :connectionName
      */
-    public function theLastQuerySucceededOn($connectionName)
+    public function theLastQuerySucceededOn($connectionName): void
     {
         if ($this->connections[$connectionName]['last-result'] === null) {
             $lastError = $this->connections[$connectionName]['last-error'];
@@ -383,22 +377,24 @@ SQL;
     /**
      * @Then the last query failed on :connectionName
      */
-    public function theLastQueryFailedOn($connectionName)
+    public function theLastQueryFailedOn($connectionName): void
     {
-        assert($this->connections[$connectionName]['last-result'] === null);
+        assert($this->connections[$connectionName]['last-error'] !== null);
     }
 
     /**
      * @Then :connectionName should have :n slave
      * @Then :connectionName should have :n slaves
      */
-    public function shouldHaveSlave($connectionName, $n)
+    public function shouldHaveSlave($connectionName, $n): void
     {
-        $connection = $this->getWrappedConnection($connectionName);
+        $connection = $this->wrpdcnx($connectionName);
         if ($connection instanceof \Ez\DbLinker\Driver\Connection\RetryConnection) {
             $connection = $connection->wrappedConnection();
         }
-        $slaveCount = count($connection->slaves());
+        $slaveCount = count(array_filter($connection->slaves(), function (\Ez\DbLinker\Slave $slave) {
+            return $slave->getWeight() > 0;
+        }));
         assert($slaveCount === (int)$n, "Slaves count is $slaveCount, $n expected.");
     }
 
@@ -406,7 +402,7 @@ SQL;
      * @Given a connection :connectionName
      * @Given a connection :connectionName with username :username
      */
-    public function aConnectionWithusername($connectionName, $username = null)
+    public function aConnectionWithusername($connectionName, $username = null): void
     {
         $this->connections[$connectionName] = [
             'params' => $this->masterParams($username),
@@ -419,7 +415,7 @@ SQL;
     /**
      * @When I prepare a statement :query on :connectionName
      */
-    public function iPrepareAStatementOn($query, $connectionName)
+    public function iPrepareAStatementOn(string $query, string $connectionName): void
     {
         $connection = $this->getConnection($connectionName);
         $this->statement = $connection->prepare($query);
@@ -459,21 +455,16 @@ SQL;
     }
 
     /**
-     * @Then the last error should be :errorName on :connectionName
+     * @Then the last error should be :errorNameExpected on :connectionName
      */
-    public function theLastErrorShouldBeOn($errorName, $connectionName)
+    public function theLastErrorShouldBeOn(string $errorNameExpected, $connectionName)
     {
-        $errorCode = $this->errorCode(
-            $this->connections[$connectionName]['last-error'] ?:
-            $retryStrategy = $this->connections[$connectionName]['params']['retryStrategy']->lastError()
-        );
-        $this->errorCodeMatchesErrorName($errorCode, $errorName);
-    }
+        $error = $this->connections[$connectionName]['last-error'] ?: $this->connections[$connectionName]['params']['retryStrategy']->lastError();
 
-    private function errorCodeMatchesErrorName($errorCode, $errorName)
-    {
-        $errorCodeAssertFailureMessage = "No error found, error $errorName expected";
-        $expectedErrorCode = $this->errorToCode($errorName);
+        $errorCode = $this->errorCode($error);
+
+        $errorCodeAssertFailureMessage = "No error found, error $errorNameExpected expected";
+        $expectedErrorCode = $this->errorToCode($errorNameExpected);
         if ($errorCode !== null) {
             $errorCodeAssertFailureMessage = "Error code is $errorCode, error code $expectedErrorCode expected";
         }
@@ -483,11 +474,21 @@ SQL;
     abstract protected function errorToCode($errorName);
     abstract protected function errorCode(Exception $exception);
 
-    private function getWrappedConnection($connectionName)
+    /**
+     * @param $connectionName
+     * @return \Ez\DbLinker\Driver\Connection\MasterSlavesConnection
+     * @throws \Doctrine\DBAL\DBALException
+     */
+    private function wrpdcnx($connectionName)
     {
         return $this->getConnection($connectionName)->getWrappedConnection();
     }
 
+    /**
+     * @param $connectionName
+     * @return Doctrine\DBAL\Connection
+     * @throws \Doctrine\DBAL\DBALException
+     */
     private function getConnection($connectionName)
     {
         if ($this->connections[$connectionName]['instance'] === null) {
@@ -507,11 +508,10 @@ SQL;
      */
     public function tableCanBeCreatedAutomaticallyOn($tableName, $connectionName)
     {
+        // drop table first ??
         $retryStrategy = $this->connections[$connectionName]['params']['retryStrategy'];
-        $retryStrategy->addHandler(function (
-            Exception $exception,
-            RetryConnection $connection
-        ) use ($tableName) {
+        $this->wrpdcnx($connectionName)->exec('DROP TABLE IF EXISTS ' . $tableName);
+        $retryStrategy->addHandler(function (Exception $exception, RetryConnection $connection) use ($tableName) {
             if (strpos($exception->getMessage(), $tableName) !== false) {
                 $connection->exec("CREATE TABLE {$tableName} (id INT)");
                 return true;
@@ -524,7 +524,7 @@ SQL;
      */
     public function theCacheIsDisable($connectionName)
     {
-        $connection = $this->getWrappedConnection($connectionName);
+        $connection = $this->wrpdcnx($connectionName);
         $connection->disableCache();
     }
 
@@ -533,15 +533,32 @@ SQL;
      */
     public function slaveReplicationIsStopped($connectionName)
     {
-        $connection = $this->getWrappedConnection($connectionName);
+        $connection = $this->wrpdcnx($connectionName);
         if ($connection instanceof Ez\DbLinker\Driver\Connection\RetryConnection) {
             $connection = $connection->wrappedConnection();
         }
-        $connection->connectToSlave();
-        $connection->setSlaveStatus(false, 120);
-        $connection->isSlaveOk();
+        /** @var \Ez\DbLinker\Driver\Connection\MasterSlavesConnection $connection */
+        $connection->setSlaveStatus(current($connection->slaves()), false, 120);
+        current($connection->slaves())->disable();
     }
 
+    /**
+     * @Then there is :n connections established on :connectionName
+     */
+    public function thereIsConnections($connectionName, $n)
+    {
+        $connection = $this->getConnection($connectionName);
+        $connections = $connection->query("SELECT count(*) as n FROM pg_stat_activity")->fetch()['n'];
+        assert($n == $connections, "There is $connections active connection(s) on the test server");
+    }
+
+    /**
+     * @Then close :arg1
+     */
+    public function close($arg1)
+    {
+        $this->getConnection($arg1)->close();
+    }
 
     abstract protected function retryStrategy($n);
 }
