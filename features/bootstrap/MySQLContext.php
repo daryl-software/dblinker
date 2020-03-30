@@ -1,7 +1,5 @@
 <?php
 
-use Doctrine\DBAL\DriverManager;
-
 use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\DriverException as DDriverException;
 use Doctrine\DBAL\Exception\DriverException as EDriverException;

@@ -94,12 +94,12 @@ trait PostgreSQLContext
 
     private function retryDriverClass()
     {
-        return "Ez\DbLinker\Driver\PostgresqlRetryDriver";
+        return Ez\DbLinker\Driver\PostgresqlRetryDriver::class;
     }
 
     private function masterSlaveDriverClass()
     {
-        return "Ez\DbLinker\Driver\PostgresqlMasterSlavesDriver";
+        return Ez\DbLinker\Driver\PostgresqlMasterSlavesDriver::class;
     }
 
     private function prepareSql($sql)

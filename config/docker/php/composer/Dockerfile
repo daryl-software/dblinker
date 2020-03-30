@@ -1,6 +1,7 @@
-FROM php:7.1-fpm-alpine
+FROM php:7.4-cli
 
-RUN docker-php-ext-install mbstring
+RUN apt-get update && apt-get install -y libonig-dev zip \
+    && docker-php-ext-install mbstring
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir /usr/local/bin --filename composer
 
