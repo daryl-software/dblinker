@@ -61,7 +61,7 @@ abstract class ExtendedServer
 
     public function __toString()
     {
-        return get_class($this) . ' - ' . $this->user . '@' . $this->host . ':' . $this->dbname;
+        return get_class($this) . ' - ' . $this->user . '@' . $this->host . ':' . $this->port . '/' . $this->dbname;
     }
 
     public function close() {
