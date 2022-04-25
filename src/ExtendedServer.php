@@ -13,6 +13,7 @@ abstract class ExtendedServer
     protected $user;
     protected $password;
     protected $dbname;
+    protected $charset;
     protected $extraParams = [];
     protected $driver;
     protected $driverOptions;
@@ -31,6 +32,7 @@ abstract class ExtendedServer
                 case 'user':
                 case 'password':
                 case 'dbname':
+                case 'charset':
                 case 'weight':
                 case 'driver':
                 case 'driverOptions':
@@ -38,7 +40,6 @@ abstract class ExtendedServer
                 break;
             default:
                 throw new \Exception($key . ' = ' . $value);
-                $extraParams[$key] = $value;
             }
         }
     }
@@ -50,6 +51,7 @@ abstract class ExtendedServer
             'user' => $this->user,
             'password' => $this->password,
             'dbname' => $this->dbname,
+            'charset' => $this->charset,
             'driver' => $this->driver,
             'driverOptions' => $this->driverOptions,
         ];
