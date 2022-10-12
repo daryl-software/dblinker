@@ -122,6 +122,7 @@ class RetryStatement implements IteratorAggregate, Statement
         return $this->statement->setFetchMode($fetchMode, $arg2, $arg3);
     }
 
+    #[\ReturnTypeWillChange]
     /**
      * {@inheritdoc}
      */
